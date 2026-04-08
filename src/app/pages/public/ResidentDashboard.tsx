@@ -9,7 +9,7 @@
  * - Duplicate prevention (one pending issue per room)
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuthStore } from '../../store/authStore';
 import { useDataStore } from '../../store/dataStore';
 import { Button } from '../../components/ui/button';
@@ -45,11 +45,24 @@ import { format } from 'date-fns';
  */
 export default function ResidentDashboard() {
   const { user } = useAuthStore();
-  const { tickets, addTicket, getTicketsByUser, updateTicket } = useDataStore();
+  const { tickets, fetchTickets, fetchNotifications, addTicket, getTicketsByUser, getFilteredNotifications, updateTicket } = useDataStore();
   const [isSubmitDialogOpen, setIsSubmitDialogOpen] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [isEditingAvailability, setIsEditingAvailability] = useState(false);
   const [tempAvailability, setTempAvailability] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const loadData = async () => {
+      setIsLoading(true);
+      await Promise.all([
+        fetchTickets(),
+        fetchNotifications()
+      ]);
+      setIsLoading(false);
+    };
+    loadData();
+  }, [fetchTickets, fetchNotifications]);
   
   // Form state for new ticket submission
   const [newTicket, setNewTicket] = useState({
@@ -66,39 +79,7 @@ export default function ResidentDashboard() {
    */
   const userTickets = getTicketsByUser(user.id, user.role);
   
-  /**
-   * Get user's notifications using the comprehensive filtering logic
-   */
-  const { notifications } = useDataStore();
-  const userNotifications = notifications.filter((notif) => {
-    // 1. Check if targeted at this specific user
-    if (notif.targetUsers && notif.targetUsers.includes(user.id)) {
-      return true;
-    }
-
-    // 2. Check if targeted at this user's role
-    if (notif.targetRoles && notif.targetRoles.includes(user.role)) {
-      // If role-targeted, also respect block filtering if applicable
-      if (notif.targetBlocks && notif.targetBlocks.length > 0) {
-        return user.block && notif.targetBlocks.includes(user.block);
-      }
-      return true;
-    }
-
-    // 3. Check if targeted at this user's block (campus-wide if empty)
-    if (notif.targetBlocks && notif.targetBlocks.length > 0) {
-      return user.block && notif.targetBlocks.includes(user.block);
-    }
-
-    // 4. Campus-wide alerts (alert type with no specific targeting)
-    if (notif.type === 'alert' && (!notif.targetUsers || notif.targetUsers.length === 0) && (!notif.targetBlocks || notif.targetBlocks.length === 0)) {
-      return true;
-    }
-
-    // Fallback for notifications explicitly marked for "all" in legacy code or simple ID matches
-    // @ts-ignore - handling potential legacy data
-    return notif.userId === user.id || notif.userId === 'all';
-  });
+  const userNotifications = getFilteredNotifications(user);
   
   /**
    * Check for duplicate tickets in a smart way
@@ -441,7 +422,7 @@ export default function ResidentDashboard() {
             </Card>
           ) : (
             <div className="space-y-4">
-              {userTickets.map((ticket) => (
+              {Array.isArray(userTickets) && userTickets.map((ticket) => (
                 <Card key={ticket.id} className="bg-white border-border hover:shadow-md transition-shadow cursor-pointer overflow-hidden" onClick={() => setSelectedTicket(ticket)}>
                   <CardHeader className="pb-3">
                     <div className="flex items-start justify-between">
@@ -461,7 +442,7 @@ export default function ResidentDashboard() {
                         </CardDescription>
                       </div>
                       <Badge variant="outline" className="border-primary/20 text-primary bg-primary/5 px-3 py-1">
-                        {ticket.status.replace('_', ' ')}
+                        {ticket.status ? ticket.status.replace('_', ' ') : 'Open'}
                       </Badge>
                     </div>
                   </CardHeader>
@@ -471,7 +452,7 @@ export default function ResidentDashboard() {
                     <div className="flex items-center gap-6 text-sm text-muted-foreground pt-4 border-t border-border">
                       <div className="flex items-center gap-2">
                         <Calendar className="w-4 h-4 text-primary" />
-                        {format(new Date(ticket.createdAt), 'MMM d, yyyy')}
+                        {ticket.createdAt ? format(new Date(ticket.createdAt), 'MMM d, yyyy') : 'No date'}
                       </div>
                       {ticket.assignedTo && (
                         <div className="flex items-center gap-2">
@@ -505,7 +486,7 @@ export default function ResidentDashboard() {
             </Card>
           ) : (
             <div className="space-y-3">
-              {userNotifications.map((notification) => (
+              {Array.isArray(userNotifications) && userNotifications.map((notification) => (
                 <Card key={notification.id} className="bg-white border-border shadow-sm">
                   <CardContent className="p-4">
                     <div className="flex items-start gap-3">
@@ -526,7 +507,7 @@ export default function ResidentDashboard() {
                             {notification.title}
                           </h4>
                           <span className="text-xs text-muted-foreground">
-                            {format(new Date(notification.createdAt), 'MMM d, HH:mm')}
+                            {notification.createdAt ? format(new Date(notification.createdAt), 'MMM d, HH:mm') : 'No date'}
                           </span>
                         </div>
                         <p className="text-sm text-muted-foreground">{notification.message}</p>
@@ -558,7 +539,7 @@ export default function ResidentDashboard() {
                     </DialogTitle>
                     <DialogDescription className="text-muted-foreground">
                       Ticket #{selectedTicket.ticketNumber} • Submitted on{' '}
-                      {format(new Date(selectedTicket.createdAt), 'MMMM d, yyyy')}
+                      {selectedTicket.createdAt ? format(new Date(selectedTicket.createdAt), 'MMMM d, yyyy') : 'No date'}
                     </DialogDescription>
                   </div>
                   <div className="flex gap-2">
@@ -570,7 +551,7 @@ export default function ResidentDashboard() {
                       </Badge>
                     )}
                     <Badge variant="outline" className="border-primary/20 text-primary bg-primary/5 px-3 py-1">
-                      {selectedTicket.status.replace('_', ' ')}
+                      {selectedTicket.status ? selectedTicket.status.replace('_', ' ') : 'Open'}
                     </Badge>
                   </div>
                 </div>

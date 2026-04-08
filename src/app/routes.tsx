@@ -24,6 +24,7 @@ import BlockManagement from './pages/private/BlockManagement';
 
 // Shared Pages
 import NotFound from './pages/NotFound';
+import ErrorBoundary from './components/ErrorBoundary';
 
 // Layout Components
 import PublicLayout from './layouts/PublicLayout';
@@ -45,10 +46,12 @@ export const router = createBrowserRouter([
   {
     path: '/',
     element: <PublicLogin />,
+    errorElement: <ErrorBoundary />,
   },
   {
     path: '/resident',
     element: <PublicLayout />,
+    errorElement: <ErrorBoundary />,
     children: [
       {
         index: true,
@@ -67,10 +70,12 @@ export const router = createBrowserRouter([
   {
     path: '/private',
     element: <PrivateLogin />,
+    errorElement: <ErrorBoundary />,
   },
   {
     path: '/dashboard',
     element: <PrivateLayout />,
+    errorElement: <ErrorBoundary />,
     children: [
       // Role-specific dashboards
       {

@@ -1,16 +1,13 @@
 /**
  * BIUST Smart Maintenance System - Operator Dashboard
  * 
- * Main interface for operators to manage tickets and workflow.
- * Features:
- * - View all tickets with advanced filtering
- * - Assign technicians to tickets
- * - Set priority levels
- * - Update ticket status
- * - View and manage all maintenance operations
+ * Command center for maintenance dispatchers. 
+ * Orchestrates ticket flow, technician assignment, and priority management.
+ * 
+ *  FEATURES: Dispatch, Ticket Management, Assignment, Operational Analytics
  */
 
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useAuthStore } from '../../store/authStore';
 import { useDataStore } from '../../store/dataStore';
 import { Button } from '../../components/ui/button';
@@ -18,101 +15,41 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/ca
 import { Input } from '../../components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { Badge } from '../../components/ui/badge';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '../../components/ui/table';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '../../components/ui/dialog';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../../components/ui/dialog';
 import { Label } from '../../components/ui/label';
-import { toast } from 'sonner';
-import {
-  Search,
-  UserPlus,
-  AlertTriangle,
-  TrendingUp,
-  Clock,
-  CheckCircle2,
-  Settings,
-} from 'lucide-react';
-import { Ticket, TicketPriority, User, DashboardAnalytics } from '../../types';
+import { Search, UserPlus, AlertTriangle, TrendingUp, Clock, CheckCircle2 } from 'lucide-react';
+import { TicketPriority } from '../../types';
 import ProgressTimeline from '../../components/ProgressTimeline';
+import API from '../../services/api';
 import { format } from 'date-fns';
 
-/**
- * OperatorDashboard Component
- * 
- * Central hub for operators to manage maintenance workflows
- */
 export default function OperatorDashboard() {
-  const { user } = useAuthStore();
-  const { tickets, assignTechnician, updatePriority, dashboardAnalytics } = useDataStore();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
+  const { tickets, fetchTickets, assignTechnician, updatePriority, dashboardAnalytics: stats } = useDataStore();
+  const [query, setQuery] = useState('');
+  const [filters, setFilters] = useState({ priority: 'all', status: 'all' });
+  const [technicians, setTechnicians] = useState<any[]>([]);
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
   const [isPriorityDialogOpen, setIsPriorityDialogOpen] = useState(false);
-  const [selectedPriority, setSelectedPriority] = useState<TicketPriority | 'all'>('all');
-  const [selectedStatus, setSelectedStatus] = useState<string>('all');
+
+  useEffect(() => { 
+    fetchTickets();
+    API.get('/users?role=technician').then(res => setTechnicians(res.data));
+  }, [fetchTickets]);
   
-  if (!user) return null;
-  
-  /**
-   * Filter tickets based on search and filters
-   */
-  const filteredTickets = tickets.filter((ticket) => {
-    // Search filter
-    const matchesSearch =
-      searchQuery === '' ||
-      ticket.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      ticket.ticketNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      ticket.block.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    // Priority filter
-    const matchesPriority =
-      selectedPriority === 'all' || ticket.priority === selectedPriority;
-    
-    // Status filter
-    const matchesStatus =
-      selectedStatus === 'all' || ticket.status === selectedStatus;
-    
-    return matchesSearch && matchesPriority && matchesStatus;
-  });
-  
-  /**
-   * Get priority badge styling
-   */
-  const getPriorityBadge = (priority?: TicketPriority) => {
-    const styles = {
-      critical: 'bg-red-500 text-white',
-      high: 'bg-orange-500 text-white',
-      medium: 'bg-yellow-500 text-white',
-      low: 'bg-blue-500 text-white',
-    };
-    
-    return priority ? styles[priority] : 'bg-slate-500 text-white';
+  const filteredTickets = useMemo(() => tickets.filter(t => {
+    const matchSearch = !query || [t.title, t.ticketNumber, t.block].some(f => f && f.toLowerCase().includes(query.toLowerCase()));
+    const matchPriority = filters.priority === 'all' || t.priority === filters.priority;
+    const matchStatus = filters.status === 'all' || t.status === filters.status;
+    return matchSearch && matchPriority && matchStatus;
+  }), [tickets, query, filters]);
+
+  const priorityStyles: Record<string, string> = {
+    critical: 'bg-red-500', high: 'bg-orange-500', medium: 'bg-yellow-500', low: 'bg-blue-500'
   };
-  
-  /**
-   * Get status badge variant
-   */
-  const getStatusBadge = (status: string) => {
-    const styles = {
-      open: 'bg-amber-100 text-amber-800',
-      in_progress: 'bg-blue-100 text-blue-800',
-      completed: 'bg-green-100 text-green-800',
-      closed: 'bg-slate-100 text-slate-800',
-    };
-    
-    return styles[status as keyof typeof styles] || 'bg-slate-100 text-slate-800';
+
+  const statusStyles: Record<string, string> = {
+    open: 'bg-blue-100 text-blue-700', in_progress: 'bg-amber-100 text-amber-700', completed: 'bg-emerald-100 text-emerald-700', closed: 'bg-slate-100 text-slate-700'
   };
   
   /**
@@ -121,15 +58,10 @@ export default function OperatorDashboard() {
   const handleAssignTechnician = (technicianId: string) => {
     if (!selectedTicket) return;
     
-    const technician = mockTechnicians.find(t => t.id === technicianId);
+    const technician = technicians.find(t => t.id === technicianId);
     if (!technician) return;
     
-    assignTechnician(selectedTicket.id, {
-      id: technician.id,
-      name: technician.name,
-      role: 'technician',
-      email: `${technician.name.toLowerCase().replace(' ', '.')}@biust.ac.bw`
-    });
+    assignTechnician(selectedTicket.id, technician);
     
     setIsAssignDialogOpen(false);
     setSelectedTicket(null);
@@ -289,7 +221,16 @@ export default function OperatorDashboard() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredTickets.length === 0 ? (
+                {isLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center py-12">
+                      <div className="flex flex-col items-center gap-2">
+                        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+                        <p className="text-slate-400">Loading tickets...</p>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ) : !Array.isArray(filteredTickets) || filteredTickets.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={8} className="text-center py-8 text-slate-400">
                       No tickets found
@@ -343,7 +284,7 @@ export default function OperatorDashboard() {
                         )}
                       </TableCell>
                       <TableCell className="text-slate-300 text-sm">
-                        {format(new Date(ticket.createdAt), 'MMM d')}
+                        {ticket.createdAt ? format(new Date(ticket.createdAt), 'MMM d, yyyy') : 'N/A'}
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
@@ -452,7 +393,7 @@ export default function OperatorDashboard() {
             <div>
               <Label>Available Technicians</Label>
               <div className="mt-2 space-y-2">
-                {mockTechnicians.map((tech) => (
+                {Array.isArray(mockTechnicians) && mockTechnicians.map((tech) => (
                   <Button
                     key={tech.id}
                     variant="outline"
@@ -485,7 +426,7 @@ export default function OperatorDashboard() {
           </DialogHeader>
           
           <div className="space-y-3 mt-4">
-            {(['critical', 'high', 'medium', 'low'] as TicketPriority[]).map((priority) => (
+            {Array.isArray(['critical', 'high', 'medium', 'low']) && (['critical', 'high', 'medium', 'low'] as TicketPriority[]).map((priority) => (
               <Button
                 key={priority}
                 variant="outline"

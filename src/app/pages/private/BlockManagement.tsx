@@ -10,7 +10,7 @@
  * - Audit logs for all changes
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
@@ -28,32 +28,79 @@ import {
   Home,
   CheckCircle2,
 } from 'lucide-react';
+import API from '../../services/api';
 import { useDataStore } from '../../store/dataStore';
 import { useAuthStore } from '../../store/authStore';
 import { StudentImportData } from '../../types';
 
 export default function BlockManagement() {
-  const { blocks, addBlock } = useDataStore();
+  const { blocks, addBlock, fetchBlocks } = useDataStore();
   const { importStudents } = useAuthStore();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+  const [newBlockName, setNewBlockName] = useState('');
+
+  useEffect(() => {
+    fetchBlocks();
+  }, [fetchBlocks]);
   
   /**
    * Handle block creation
    */
-  const handleAddBlock = () => {
-    toast.success('Block created successfully');
-    setIsAddDialogOpen(false);
+  const handleAddBlock = async () => {
+    if (!newBlockName) {
+      toast.error('Block name is required');
+      return;
+    }
+
+    try {
+      await addBlock({
+        name: newBlockName,
+        capacity: 0,
+        occupiedRooms: 0,
+        status: 'active',
+        lastUpdated: new Date()
+      });
+      setIsAddDialogOpen(false);
+      setNewBlockName('');
+      await fetchBlocks();
+    } catch (err) {
+      console.error(err);
+    }
   };
   
   /**
    * Handle CSV import
    */
-  const handleImportCSV = () => {
-    // In production, this would parse the CSV file
-    // The previous mock implementation has been removed for security.
-    toast.success('Student data imported successfully');
-    setIsImportDialogOpen(false);
+  const handleImportCSV = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const text = e.target?.result as string;
+      const lines = text.split('\n');
+      const headers = lines[0].split(',').map(h => h.trim());
+      
+      const students: StudentImportData[] = lines.slice(1).filter(l => l.trim()).map(line => {
+        const values = line.split(',').map(v => v.trim());
+        const student: any = {};
+        headers.forEach((header, index) => {
+          student[header] = values[index];
+        });
+        return student;
+      });
+
+      try {
+        await API.post('/residents/batch', students);
+        toast.success(`${students.length} students imported successfully`);
+        setIsImportDialogOpen(false);
+      } catch (err) {
+        toast.error('Failed to import student data');
+        console.error(err);
+      }
+    };
+    reader.readAsText(file);
   };
   
   /**
@@ -88,8 +135,9 @@ export default function BlockManagement() {
                   <Label className="text-foreground">CSV File</Label>
                   <Input
                     type="file"
-                    accept=".csv,.xlsx"
+                    accept=".csv"
                     className="bg-muted border-border mt-1 text-foreground"
+                    onChange={handleImportCSV}
                   />
                   <p className="text-xs text-muted-foreground mt-2">
                     Required columns: name, student_id, omang, level, block, room, digital_key
@@ -127,6 +175,8 @@ export default function BlockManagement() {
                   <Input
                     placeholder="e.g., Block D"
                     className="bg-muted border-border mt-1 text-foreground"
+                    value={newBlockName}
+                    onChange={(e) => setNewBlockName(e.target.value)}
                   />
                 </div>
                 
@@ -225,8 +275,8 @@ export default function BlockManagement() {
       
       {/* Blocks List */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {blocks.map((block) => {
-          const occupancyPercent = Math.round((block.occupiedRooms / block.capacity) * 100);
+        {Array.isArray(blocks) ? blocks.map((block) => {
+          const occupancyPercent = block.capacity > 0 ? Math.round((block.occupiedRooms / block.capacity) * 100) : 0;
           
           return (
             <Card key={block.id} className="bg-white border-border">
@@ -238,7 +288,7 @@ export default function BlockManagement() {
                     </div>
                     <div>
                       <CardTitle className="text-foreground text-lg">{block.name}</CardTitle>
-                      <p className="text-sm text-muted-foreground">{block.area}</p>
+                      <p className="text-sm text-muted-foreground">{block.area || 'N/A'}</p>
                     </div>
                   </div>
                   <Badge className="bg-green-500/10 text-green-600 border-none">Active</Badge>
@@ -246,7 +296,7 @@ export default function BlockManagement() {
               </CardHeader>
               
               <CardContent className="space-y-4">
-                <p className="text-sm text-muted-foreground">{block.description}</p>
+                <p className="text-sm text-muted-foreground">{block.description || 'No description'}</p>
                 
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
@@ -284,7 +334,7 @@ export default function BlockManagement() {
               </CardContent>
             </Card>
           );
-        })}
+        }) : <div className="col-span-full py-12 text-center text-muted-foreground">No blocks found</div>}
       </div>
       
     </div>

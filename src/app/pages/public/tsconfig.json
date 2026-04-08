@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    // Modern targets work better with Vite + Storybook
+    "target": "ESNext",
+    "module": "ESNext",
+
+    // Use modern resolution so TS can find Storybook types
+    "moduleResolution": "node16",
+
+    // React JSX transform
+    "jsx": "react-jsx",
+
+    // Interop settings
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+
+    // Keep strictness and casing checks
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+
+    // Skip type checking of node_modules for speed
+    "skipLibCheck": true
+  }
+}

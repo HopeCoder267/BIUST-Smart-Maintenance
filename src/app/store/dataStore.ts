@@ -1,13 +1,23 @@
 /**
- * BIUST Smart Maintenance System - Data Store
+ * BIUST Smart Maintenance System - Central Data Store
  * 
- * This Zustand store manages all application data including tickets, inventory, blocks, etc.
- * Provides full CRUD operations for all data entities.
+ * This store is the brain of our application, handling all maintenance tickets, 
+ * inventory stock, residential blocks, and system notifications using Zustand.
+ * It ensures data stays in sync across the entire system.
  */
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { toast } from 'sonner';
+import API from '../services/api';
+import {
+  mockTickets,
+  mockInventory,
+  mockBlocks,
+  mockNotifications,
+  mockAnalytics,
+  mockBudget
+} from '../services/mockData';
 import {
   Ticket,
   TicketPriority,
@@ -23,14 +33,6 @@ import {
   DashboardAnalytics,
   Budget
 } from '../types';
-import { 
-  mockTickets, 
-  mockInventory, 
-  mockBlocks, 
-  mockNotifications,
-  mockAnalytics,
-  mockBudget 
-} from '../services/mockData';
 
 /**
  * Data store state interface
@@ -42,38 +44,47 @@ interface DataState {
   blocks: Block[];
   notifications: Notification[];
   
+  // Async Data Fetching
+  fetchTickets: () => Promise<void>;
+  fetchInventory: () => Promise<void>;
+  fetchNotifications: () => Promise<void>;
+  fetchBlocks: () => Promise<void>;
+  fetchBudget: () => Promise<void>;
+  fetchRooms: (blockName: string) => Promise<string[]>;
+  
   // Ticket operations
-  addTicket: (ticket: Omit<Ticket, 'id' | 'ticketNumber' | 'createdAt' | 'updatedAt'>) => Ticket;
-  updateTicket: (id: string, updates: Partial<Ticket>) => void;
-  deleteTicket: (id: string) => void;
-  assignTechnician: (ticketId: string, technician: User) => void;
-  updatePriority: (ticketId: string, priority: TicketPriority) => void;
-  updateStatus: (ticketId: string, status: TicketStatus) => void;
-  updateProgress: (ticketId: string, stage: ProgressStage, notes: string, updatedBy: User) => void;
-  addTicketNote: (ticketId: string, content: string, createdBy: User, isInternal?: boolean) => void;
+  addTicket: (ticket: Omit<Ticket, 'id' | 'ticketNumber' | 'createdAt' | 'updatedAt'>) => Promise<Ticket>;
+  updateTicket: (id: string, updates: Partial<Ticket>) => Promise<void>;
+  deleteTicket: (id: string) => Promise<void>;
+  assignTechnician: (ticketId: string, technician: User) => Promise<void>;
+  updatePriority: (ticketId: string, priority: TicketPriority) => Promise<void>;
+  updateStatus: (ticketId: string, status: TicketStatus) => Promise<void>;
+  updateProgress: (ticketId: string, stage: ProgressStage, notes: string, updatedBy: User) => Promise<void>;
+  addTicketNote: (ticketId: string, content: string, createdBy: User, isInternal?: boolean) => Promise<void>;
   
   // Inventory operations
-  addInventoryItem: (item: Omit<InventoryItem, 'id'>) => void;
-  updateInventoryItem: (id: string, updates: Partial<InventoryItem>) => void;
-  deleteInventoryItem: (id: string) => void;
-  updateStock: (id: string, quantity: number, reason: string) => void;
+  addInventoryItem: (item: Omit<InventoryItem, 'id'>) => Promise<void>;
+  updateInventoryItem: (id: string, updates: Partial<InventoryItem>) => Promise<void>;
+  deleteInventoryItem: (id: string) => Promise<void>;
+  updateStock: (id: string, quantity: number, reason: string) => Promise<void>;
   
   // Block operations
-  addBlock: (block: Omit<Block, 'id'>) => void;
-  updateBlock: (id: string, updates: Partial<Block>) => void;
-  deleteBlock: (id: string) => void;
+  addBlock: (block: Omit<Block, 'id'>) => Promise<void>;
+  updateBlock: (id: string, updates: Partial<Block>) => Promise<void>;
+  deleteBlock: (id: string) => Promise<void>;
   
   // Notification operations
-  addNotification: (notification: Omit<Notification, 'id' | 'createdAt'>) => void;
-  markNotificationAsRead: (id: string) => void;
+  addNotification: (notification: Omit<Notification, 'id' | 'createdAt'>) => Promise<void>;
+  markNotificationAsRead: (id: string) => Promise<void>;
   
   // Analytics
   dashboardAnalytics: DashboardAnalytics;
   budget: Budget;
-  refreshAnalytics: () => void;
+  refreshAnalytics: () => Promise<void>;
   
   // Utility functions
   getTicketsByUser: (userId: string, userRole: string) => Ticket[];
+  getFilteredNotifications: (user: User) => Notification[];
   getTicketById: (id: string) => Ticket | undefined;
   resetData: () => void;
 }
@@ -100,122 +111,217 @@ const generateId = (prefix: string): string => {
 export const useDataStore = create<DataState>()(
   persist(
     (set, get) => ({
-      // Initialize with mock data
-      tickets: mockTickets,
-      inventory: mockInventory,
-      blocks: mockBlocks,
-      notifications: mockNotifications,
-      dashboardAnalytics: mockAnalytics,
-      budget: mockBudget,
+      // Initialize with empty collections, data will be fetched from API
+      tickets: [],
+      inventory: [],
+      blocks: [],
+      notifications: [],
+      dashboardAnalytics: {} as DashboardAnalytics,
+      budget: {} as Budget,
       
       /**
-       * Refresh dashboard analytics based on current data
+       * Brings in all tickets from the server and updates the local state.
+       * Once fetched, it automatically refreshes dashboard analytics.
        */
-      refreshAnalytics: () => {
+      fetchTickets: async () => {
+        try {
+          const res = await API.get('/tickets');
+          set({ tickets: res.data });
+          await get().refreshAnalytics();
+        } catch (err) {
+          console.error('Oops! Could not fetch tickets:', err);
+        }
+      },
+
+      /**
+       * Synchronizes our local inventory list with the database.
+       */
+      fetchInventory: async () => {
+        try {
+          const res = await API.get('/inventory');
+          set({ inventory: res.data });
+          await get().refreshAnalytics();
+        } catch (err) {
+          console.error('Inventory sync failed:', err);
+        }
+      },
+
+      /**
+       * Grabs any new notifications for the logged-in user.
+       */
+      fetchNotifications: async () => {
+        try {
+          const res = await API.get('/notifications');
+          set({ notifications: res.data });
+        } catch (err) {
+          console.error('Failed to grab notifications:', err);
+        }
+      },
+
+      /**
+       * Loads all physical blocks/buildings managed by the system.
+       */
+      fetchBlocks: async () => {
+        try {
+          const res = await API.get('/blocks');
+          set({ blocks: Array.isArray(res.data) ? res.data : [] });
+        } catch (err) {
+          console.error('Could not load building blocks:', err);
+          set({ blocks: [] });
+        }
+      },
+
+      /**
+       * Fetches the current institutional budget stats.
+       */
+      fetchBudget: async () => {
+        try {
+          const { data } = await API.get('/budget');
+          set({ 
+            budget: {
+              totalAmount: data.total_amount,
+              allocatedAmount: data.allocated_amount,
+              remainingAmount: data.remaining_amount
+            }
+          });
+        } catch (err) {
+          console.error('Budget load failed:', err);
+        }
+      },
+
+      /**
+       * Fetches available rooms for a specific building block.
+       */
+      fetchRooms: async (blockName: string) => {
+        try {
+          const res = await API.get(`/rooms?block=${encodeURIComponent(blockName)}`);
+          return Array.isArray(res.data) ? res.data.map((r: any) => r.room_number) : [];
+        } catch (err) {
+          console.error(`Error finding rooms for ${blockName}:`, err);
+          return [];
+        }
+      },
+      
+      /**
+       * Recalculates dashboard metrics based on current ticket and inventory data.
+       * Uses a single-pass reduction for maximum performance.
+       */
+      refreshAnalytics: async () => {
         const { tickets, inventory } = get();
         
-        const analytics: DashboardAnalytics = {
+        const oneWeekAgo = new Date();
+        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+        
+        const oneMonthAgo = new Date();
+        oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+
+        const analytics: DashboardAnalytics = tickets.reduce((acc, t) => {
+          // Status counts
+          if (t.status === 'open') acc.openTickets++;
+          else if (t.status === 'in_progress') acc.inProgressTickets++;
+          else if (t.status === 'completed') acc.completedTickets++;
+          else if (t.status === 'closed') acc.closedTickets++;
+          
+          acc.totalTickets++;
+          acc.totalBlocks = blocks.length;
+          
+          // Priority distribution
+          const priority = (t.priority as string).toLowerCase();
+          if (priority === 'low') acc.ticketsByPriority.low++;
+          else if (priority === 'medium') acc.ticketsByPriority.medium++;
+          else if (priority === 'high') acc.ticketsByPriority.high++;
+          else if (priority === 'critical' || priority === 'emergency') acc.ticketsByPriority.critical++;
+          
+          // Category distribution
+          const category = (t.category as string).toLowerCase();
+          if (Object.prototype.hasOwnProperty.call(acc.ticketsByCategory, category)) {
+            acc.ticketsByCategory[category]++;
+          } else {
+            acc.ticketsByCategory.other++;
+          }
+          
+          // Time-based stats
+          const createdDate = new Date(t.createdAt);
+          if (createdDate > oneWeekAgo) acc.ticketsThisWeek++;
+          if (createdDate > oneMonthAgo) acc.ticketsThisMonth++;
+          
+          return acc;
+        }, {
           totalTickets: tickets.length,
-          openTickets: tickets.filter(t => t.status === 'open').length,
-          inProgressTickets: tickets.filter(t => t.status === 'in_progress').length,
-          completedTickets: tickets.filter(t => t.status === 'completed').length,
-          closedTickets: tickets.filter(t => t.status === 'closed').length,
-          
-          averageResolutionTime: 48, // Simplified for now
-          
-          ticketsByPriority: {
-            low: tickets.filter(t => t.priority === 'low').length,
-            medium: tickets.filter(t => t.priority === 'medium').length,
-            high: tickets.filter(t => t.priority === 'high').length,
-            critical: tickets.filter(t => t.priority === 'critical').length,
-          },
-          
-          ticketsByCategory: {
-            plumbing: tickets.filter(t => t.category === 'plumbing').length,
-            electrical: tickets.filter(t => t.category === 'electrical').length,
-            carpentry: tickets.filter(t => t.category === 'carpentry').length,
-            hvac: tickets.filter(t => t.category === 'hvac').length,
-            cleaning: tickets.filter(t => t.category === 'cleaning').length,
-            security: tickets.filter(t => t.category === 'security').length,
-            other: tickets.filter(t => t.category === 'other').length,
-          },
-          
-          lowStockItems: inventory.filter(i => i.currentStock <= i.minStock).length,
-          outOfStockItems: inventory.filter(i => i.currentStock === 0).length,
-          
-          ticketsThisWeek: tickets.filter(t => {
-            const oneWeekAgo = new Date();
-            oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-            return new Date(t.createdAt) > oneWeekAgo;
-          }).length,
-          
-          ticketsThisMonth: tickets.filter(t => {
-            const oneMonthAgo = new Date();
-            oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
-            return new Date(t.createdAt) > oneMonthAgo;
-          }).length,
-          
+          totalBlocks: blocks.length,
+          openTickets: 0,
+          inProgressTickets: 0,
+          completedTickets: 0,
+          closedTickets: 0,
+          averageResolutionTime: 48, // Standard average fallback
+          ticketsByPriority: { low: 0, medium: 0, high: 0, critical: 0 },
+          ticketsByCategory: { plumbing: 0, electrical: 0, carpentry: 0, hvac: 0, cleaning: 0, security: 0, other: 0 },
+          lowStockItems: 0,
+          outOfStockItems: 0,
+          ticketsThisWeek: 0,
+          ticketsThisMonth: 0,
           lastUpdated: new Date()
-        };
+        });
+        
+        // Inventory stats (separate pass for clarity and since inventory is usually smaller)
+        analytics.lowStockItems = inventory.filter(i => i.currentStock <= i.minStock).length;
+        analytics.outOfStockItems = inventory.filter(i => i.currentStock === 0).length;
         
         set({ dashboardAnalytics: analytics });
       },
       
       /**
-       * Add a new ticket
+       * Creates a brand new maintenance request.
+       * Sets it up in our local list and alerts the user on success.
        */
-      addTicket: (ticketData) => {
-        const newTicket: Ticket = {
-          ...ticketData,
-          id: generateId('ticket'),
-          ticketNumber: generateTicketNumber(),
-          status: 'open',
-          currentStage: 'report_submitted',
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          progressHistory: [
-            {
-              stage: 'report_submitted',
-              timestamp: new Date(),
-              updatedBy: ticketData.submittedBy,
-              notes: 'Initial report submitted'
-            }
-          ],
-          notes: []
-        };
-        
-        set((state) => ({
-          tickets: [...state.tickets, newTicket]
-        }));
-        
-        get().refreshAnalytics();
-        
-        toast.success('Ticket created successfully', {
-          description: `Ticket ${newTicket.ticketNumber} has been created`
-        });
-        
-        return newTicket;
+      addTicket: async (ticketData) => {
+        try {
+          const res = await API.post('/tickets', ticketData);
+          const newTicket = res.data;
+          
+          set((state) => ({
+            tickets: [...state.tickets, newTicket]
+          }));
+          
+          await get().refreshAnalytics();
+          
+          toast.success('Ticket created!', {
+            description: `We've logged ticket ${newTicket.ticketNumber} for you.`
+          });
+          
+          return newTicket;
+        } catch (err) {
+          console.error('Ticket creation hit a snag:', err);
+          toast.error('Could not create ticket. Please try again.');
+          throw err;
+        }
       },
       
       /**
-       * Update ticket with partial data
+       * Updates an existing ticket with new details.
        */
-      updateTicket: (id, updates) => {
-        set((state) => ({
-          tickets: state.tickets.map((ticket) =>
-            ticket.id === id
-              ? { ...ticket, ...updates, updatedAt: new Date() }
-              : ticket
-          )
-        }));
-        
-        get().refreshAnalytics();
-        
-        toast.success('Ticket updated successfully');
+      updateTicket: async (id, updates) => {
+        try {
+          const res = await API.put(`/tickets/${id}`, updates);
+          const updatedTicket = res.data;
+          
+          set((state) => ({
+            tickets: state.tickets.map((ticket) =>
+              ticket.id === id ? updatedTicket : ticket
+            )
+          }));
+          
+          await get().refreshAnalytics();
+          toast.success('Ticket updated smoothly');
+        } catch (err) {
+          console.error('Update failed:', err);
+          toast.error('Failed to save ticket changes.');
+          throw err;
+        }
       },
       
       /**
-       * Delete a ticket
+       * Removes a ticket from the system.
        */
       deleteTicket: (id) => {
         set((state) => ({
@@ -224,59 +330,42 @@ export const useDataStore = create<DataState>()(
         
         get().refreshAnalytics();
         
-        toast.success('Ticket deleted successfully');
+        toast.success('Ticket removed successfully');
       },
       
       /**
-       * Assign technician to a ticket
+       * Hands off a ticket to a technician.
+       * Updates both the local state and the database.
        */
-      assignTechnician: (ticketId, technician) => {
-        const ticket = get().tickets.find((t) => t.id === ticketId);
-        if (!ticket) {
-          toast.error('Ticket not found');
-          return;
-        }
-        
-        // Update ticket with assigned technician
-        set((state) => ({
-          tickets: state.tickets.map((t) =>
-            t.id === ticketId
-              ? {
-                  ...t,
-                  assignedTo: technician,
-                  status: 'in_progress' as TicketStatus,
-                  updatedAt: new Date()
-                }
-              : t
-          )
-        }));
-        
-        // Add progress history entry
-        get().updateProgress(
-          ticketId,
-          'technician_assigned',
-          `Assigned to ${technician.name}`,
-          technician
-        );
-        
-        toast.success('Technician assigned successfully', {
-          description: `${technician.name} has been assigned to this ticket`
-        });
-
-        // Notify the resident to set/confirm their availability
-        if (ticket.submittedBy) {
-          get().addNotification({
-            title: 'Technician Assigned - Set Availability',
-            message: `Technician ${technician.name} has been assigned to your ticket #${ticket.ticketNumber}. Please ensure your availability is up to date.`,
-            type: 'info',
-            priority: 'high',
-            targetUsers: [ticket.submittedBy.id]
+      assignTechnician: async (ticketId, technician) => {
+        try {
+          const res = await API.patch(`/tickets/${ticketId}`, {
+            assigned_to: technician.id,
+            status: 'in_progress',
+            current_stage: 'technician_assigned'
           });
+          
+          const updatedTicket = res.data;
+          
+          set((state) => ({
+            tickets: state.tickets.map((t) =>
+              t.id === ticketId ? updatedTicket : t
+            )
+          }));
+          
+          await get().refreshAnalytics();
+          
+          toast.success('Technician assigned successfully', {
+            description: `${technician.name} is now on the job!`
+          });
+        } catch (err) {
+          console.error('Assignment failed:', err);
+          toast.error('Could not assign technician. System error.');
         }
       },
       
       /**
-       * Update ticket priority
+       * Adjusts the urgency level of a ticket.
        */
       updatePriority: (ticketId, priority) => {
         set((state) => ({
@@ -287,65 +376,60 @@ export const useDataStore = create<DataState>()(
           )
         }));
         
-        toast.success('Priority updated', {
-          description: `Priority set to ${priority}`
-        });
+        toast.success(`Priority set to ${priority}`);
       },
       
       /**
-       * Update ticket status
+       * Moves a ticket through its lifecycle (e.g., Open -> In Progress -> Resolved).
        */
-      updateStatus: (ticketId, status) => {
-        set((state) => ({
-          tickets: state.tickets.map((ticket) =>
-            ticket.id === ticketId
-              ? { ...ticket, status, updatedAt: new Date() }
-              : ticket
-          )
-        }));
-        
-        toast.success('Status updated', {
-          description: `Status changed to ${status.replace('_', ' ')}`
-        });
-      },
-      
-      /**
-       * Update ticket progress stage
-       */
-      updateProgress: (ticketId, stage, notes, updatedBy) => {
-        const ticket = get().tickets.find((t) => t.id === ticketId);
-        if (!ticket) {
-          toast.error('Ticket not found');
-          return;
+      updateStatus: async (ticketId, status) => {
+        try {
+          const res = await API.patch(`/tickets/${ticketId}`, { status });
+          const updatedTicket = res.data;
+          
+          set((state) => ({
+            tickets: state.tickets.map((t) =>
+              t.id === ticketId ? updatedTicket : t
+            )
+          }));
+          
+          await get().refreshAnalytics();
+          toast.success(`Status updated to ${status.replace('_', ' ')}`);
+        } catch (err) {
+          console.error('Status sync failed:', err);
+          throw err;
         }
-        
-        const newProgressEntry: ProgressHistoryEntry = {
-          stage,
-          timestamp: new Date(),
-          updatedBy,
-          notes
-        };
-        
-        set((state) => ({
-          tickets: state.tickets.map((t) =>
-            t.id === ticketId
-              ? {
-                  ...t,
-                  currentStage: stage,
-                  progressHistory: [...t.progressHistory, newProgressEntry],
-                  updatedAt: new Date()
-                }
-              : t
-          )
-        }));
-        
-        toast.success('Progress updated', {
-          description: notes
-        });
       },
       
       /**
-       * Add note to ticket
+       * Logs a major milestone in the ticket's progress history.
+       */
+      updateProgress: async (ticketId, stage, notes, updatedBy) => {
+        try {
+          const res = await API.patch(`/tickets/${ticketId}`, { 
+            current_stage: stage,
+            latest_notes: notes
+          });
+          
+          const updatedTicket = res.data;
+          
+          set((state) => ({
+            tickets: state.tickets.map((t) =>
+              t.id === ticketId ? updatedTicket : t
+            )
+          }));
+          
+          toast.success('Progress synchronized', {
+            description: notes
+          });
+        } catch (err) {
+          console.error('Progress update failed:', err);
+          throw err;
+        }
+      },
+      
+      /**
+       * Adds a personal or system note to a ticket.
        */
       addTicketNote: (ticketId, content, createdBy, isInternal = false) => {
         const ticket = get().tickets.find((t) => t.id === ticketId);
@@ -375,11 +459,11 @@ export const useDataStore = create<DataState>()(
           )
         }));
         
-        toast.success('Note added successfully');
+        toast.success('Note attached');
       },
       
       /**
-       * Add inventory item
+       * Catalogues a new item in our maintenance inventory.
        */
       addInventoryItem: (item) => {
         const newItem: InventoryItem = {
@@ -391,11 +475,11 @@ export const useDataStore = create<DataState>()(
           inventory: [...state.inventory, newItem]
         }));
         
-        toast.success('Inventory item added');
+        toast.success('Item added to inventory');
       },
       
       /**
-       * Update inventory item
+       * Modifies an existing inventory item's details.
        */
       updateInventoryItem: (id, updates) => {
         set((state) => ({
@@ -404,22 +488,22 @@ export const useDataStore = create<DataState>()(
           )
         }));
         
-        toast.success('Inventory item updated');
+        toast.success('Item details updated');
       },
       
       /**
-       * Delete inventory item
+       * Discards an item from the inventory.
        */
       deleteInventoryItem: (id) => {
         set((state) => ({
           inventory: state.inventory.filter((item) => item.id !== id)
         }));
         
-        toast.success('Inventory item deleted');
+        toast.success('Item removed from inventory');
       },
       
       /**
-       * Update inventory stock levels
+       * Updates the stock level for a specific item (restocks or usage).
        */
       updateStock: (id, quantity, reason) => {
         const item = get().inventory.find((i) => i.id === id);
@@ -453,23 +537,26 @@ export const useDataStore = create<DataState>()(
       },
       
       /**
-       * Add new block
+       * Registers a new physical building block.
        */
-      addBlock: (block) => {
-        const newBlock: Block = {
-          ...block,
-          id: generateId('block')
-        };
-        
-        set((state) => ({
-          blocks: [...state.blocks, newBlock]
-        }));
-        
-        toast.success('Block added successfully');
+      addBlock: async (block) => {
+        try {
+          const res = await API.post('/blocks', block);
+          const newBlock = res.data;
+          
+          set((state) => ({
+            blocks: [...state.blocks, newBlock]
+          }));
+          
+          toast.success('New block registered');
+        } catch (err) {
+          console.error('Failed to add block:', err);
+          toast.error('Could not register block.');
+        }
       },
       
       /**
-       * Update block
+       * Updates building block info.
        */
       updateBlock: (id, updates) => {
         set((state) => ({
@@ -478,38 +565,42 @@ export const useDataStore = create<DataState>()(
           )
         }));
         
-        toast.success('Block updated successfully');
+        toast.success('Block updated');
       },
       
       /**
-       * Delete block
+       * Deletes a building block from the records.
        */
       deleteBlock: (id) => {
         set((state) => ({
           blocks: state.blocks.filter((block) => block.id !== id)
         }));
         
-        toast.success('Block deleted successfully');
+        toast.success('Block removed');
       },
       
       /**
-       * Add notification
+       * Broadcasts a notification to targeted users or blocks.
+       * Synchronizes with the backend to ensure all residents receive the alert.
        */
-      addNotification: (notification) => {
-        const newNotification: Notification = {
-          ...notification,
-          id: generateId('notif'),
-          createdAt: new Date(),
-          read: false
-        };
-        
-        set((state) => ({
-          notifications: [...state.notifications, newNotification]
-        }));
+      addNotification: async (notificationData) => {
+        try {
+          const res = await API.post('/notifications', notificationData);
+          const newNotification = res.data;
+          
+          set((state) => ({
+            notifications: [newNotification, ...state.notifications]
+          }));
+          
+          return newNotification;
+        } catch (err) {
+          console.error('Notification dispatch failed:', err);
+          throw err;
+        }
       },
       
       /**
-       * Mark notification as read
+       * Clears a notification once it's been seen.
        */
       markNotificationAsRead: (id) => {
         set((state) => ({
@@ -520,46 +611,52 @@ export const useDataStore = create<DataState>()(
       },
       
       /**
-       * Get tickets filtered by user
+       * Filters tickets based on user permissions and roles.
        */
       getTicketsByUser: (userId, userRole) => {
         const { tickets } = get();
-        
-        // Students/staff see only their own tickets
-        if (userRole === 'student' || userRole === 'staff') {
-          return tickets.filter((ticket) => ticket.submittedBy.id === userId);
-        }
-        
-        // Technicians see tickets assigned to them
-        if (userRole === 'technician') {
-          return tickets.filter((ticket) => ticket.assignedTo?.id === userId);
-        }
-        
-        // Operators, assistants, and coordinators see all tickets
-        return tickets;
+        if (userRole === 'coordinator' || userRole === 'operator') return tickets;
+        if (userRole === 'technician') return tickets.filter(t => t.assignedTo?.id === userId);
+        return tickets.filter(t => t.submittedBy.id === userId);
       },
-      
+
       /**
-       * Get ticket by ID
+       * Sophisticated notification filtering based on user identity, role, and location.
        */
-      getTicketById: (id) => {
-        return get().tickets.find((ticket) => ticket.id === id);
+      getFilteredNotifications: (user) => {
+        const { notifications } = get();
+        return notifications.filter(n => {
+          const isTargeted = n.targetUsers?.includes(user.id);
+          const roleMatch = n.targetRoles?.includes(user.role);
+          const blockMatch = user.block && n.targetBlocks?.includes(user.block);
+          const isGlobal = n.type === 'alert' && (!n.targetUsers?.length) && (!n.targetBlocks?.length);
+          
+          if (isTargeted) return true;
+          if (roleMatch) return n.targetBlocks?.length ? blockMatch : true;
+          if (blockMatch) return true;
+          return isGlobal;
+        });
       },
+
+      /**
+       * Finds a specific ticket by its unique ID.
+       */
+      getTicketById: (id) => get().tickets.find(t => t.id === id),
       
       /**
-       * Reset all data to initial mock data
+       * Reverts all system data to its fresh, initial state.
        */
       resetData: () => {
         set({
-          tickets: mockTickets,
-          inventory: mockInventory,
-          blocks: mockBlocks,
-          notifications: mockNotifications,
-          dashboardAnalytics: mockAnalytics,
-          budget: mockBudget
+          tickets: mockTickets || [],
+          inventory: mockInventory || [],
+          blocks: mockBlocks || [],
+          notifications: mockNotifications || [],
+          dashboardAnalytics: mockAnalytics || {},
+          budget: mockBudget || {}
         });
         
-        toast.success('Data reset to initial state');
+        toast.success('System reset to baseline');
       }
     }),
     {

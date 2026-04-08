@@ -1,8 +1,10 @@
 /**
  * BIUST Smart Maintenance System - Public Side Layout
  * 
- * Layout wrapper for public-facing pages (students and staff).
- * Provides header with user info, logout button, and navigation.
+ * for Residents (students and staff) on the public side.
+ * Includes user profile summary, location context, and global navigation.
+ * 
+ * FEATURES: Public Header, User Context, Room Info, Sign Out
  */
 
 import { Outlet, useNavigate } from 'react-router';
@@ -11,109 +13,77 @@ import { Button } from '../components/ui/button';
 import { Bell, LogOut, User, Home } from 'lucide-react';
 import { useEffect } from 'react';
 
-/**
- * PublicLayout Component
- * 
- * Wraps all public side pages with consistent header and navigation.
- * Ensures user is authenticated before allowing access.
- */
 export default function PublicLayout() {
   const navigate = useNavigate();
   const { user, isAuthenticated, isPublicSide, logout } = useAuthStore();
   
   /**
-   * Redirect to login if user is not authenticated or not on public side
+   * Guards the public area from unauthorized or mismatched session types.
    */
   useEffect(() => {
-    if (!isAuthenticated || !isPublicSide) {
-      navigate('/', { replace: true });
-    }
+    if (!isAuthenticated || !isPublicSide) navigate('/', { replace: true });
   }, [isAuthenticated, isPublicSide, navigate]);
   
-  /**
-   * Handle logout
-   * Clears session and redirects to login
-   */
   const handleLogout = () => {
     logout();
     navigate('/', { replace: true });
   };
   
-  // Don't render if not authenticated
-  if (!isAuthenticated || !isPublicSide || !user) {
-    return null;
-  }
-  
+  if (!isAuthenticated || !isPublicSide || !user) return null;
+
   return (
-    <div className="min-h-screen bg-slate-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            {/* Logo and Title */}
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
-                <Home className="w-6 h-6 text-white" />
+    <div className="min-h-screen bg-slate-50 flex flex-col">
+      {/* Dynamic Header */}
+      <header className="bg-white border-b sticky top-0 z-20 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 h-16 flex justify-between items-center">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg">
+              <Home className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h1 className="font-bold text-slate-900 tracking-tight leading-none">SMART MAINTAINENCE</h1>
+              <p className="text-[11px] text-slate-500 font-medium uppercase mt-1">
+                {user.block || 'Main Campus'} • Room {user.room || 'N/A'}
+              </p>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-2 sm:gap-4">
+            <Button variant="ghost" size="icon" className="relative text-slate-600">
+              <Bell className="w-5 h-5" />
+              <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white" />
+            </Button>
+            
+            <div className="flex items-center gap-3 px-3 py-1.5 bg-slate-100 rounded-lg border">
+              <div className="w-7 h-7 bg-primary/20 rounded-full flex items-center justify-center text-primary">
+                <User className="w-4 h-4" />
               </div>
-              <div>
-                <h1 className="font-semibold text-lg text-slate-900">
-                  BIUST Smart Maintenance
-                </h1>
-                <p className="text-xs text-slate-500">
-                  {user.block} • Room {user.room}
-                </p>
+              <div className="hidden sm:block">
+                <p className="text-xs font-bold text-slate-900 leading-none">{user.name}</p>
+                <p className="text-[10px] text-slate-500 uppercase font-bold">{user.role}</p>
               </div>
             </div>
             
-            {/* User Info and Actions */}
-            <div className="flex items-center gap-4">
-              {/* Notifications Button */}
-              <Button variant="ghost" size="icon" className="relative">
-                <Bell className="w-5 h-5" />
-                {/* Notification badge */}
-                <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-              </Button>
-              
-              {/* User Info */}
-              <div className="flex items-center gap-3 px-3 py-2 bg-slate-100 rounded-lg">
-                <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
-                  <User className="w-5 h-5 text-white" />
-                </div>
-                <div className="text-left">
-                  <p className="text-sm font-medium text-slate-900">
-                    {user.name}
-                  </p>
-                  <p className="text-xs text-slate-500 capitalize">
-                    {user.role}
-                  </p>
-                </div>
-              </div>
-              
-              {/* Logout Button */}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleLogout}
-                className="gap-2"
-              >
-                <LogOut className="w-4 h-4" />
-                Logout
-              </Button>
-            </div>
+            <Button variant="outline" size="sm" onClick={handleLogout} className="hidden sm:flex gap-2">
+              <LogOut className="w-4 h-4" /> Sign Out
+            </Button>
+            <Button variant="ghost" size="icon" onClick={handleLogout} className="sm:hidden text-slate-600">
+              <LogOut className="w-5 h-5" />
+            </Button>
           </div>
         </div>
       </header>
       
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Primary Page Content */}
+      <main className="max-w-7xl mx-auto w-full px-4 py-8 flex-1">
         <Outlet />
       </main>
       
-      {/* Footer */}
-      <footer className="bg-white border-t mt-auto">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <p className="text-center text-sm text-slate-500">
-            © 2024 BIUST Smart Maintenance System. All rights reserved.
+      {/* Minimal Footer */}
+      <footer className="bg-white border-t py-6 mt-12">
+        <div className="max-w-7xl mx-auto px-4 text-center">
+          <p className="text-xs text-slate-400 font-medium tracking-wide uppercase">
+            © 2026 BIUST Smart Maintenance Portal
           </p>
         </div>
       </footer>

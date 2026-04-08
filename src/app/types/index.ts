@@ -501,6 +501,9 @@ export interface DashboardAnalytics {
   lowStockItems?: number;
   outOfStockItems?: number;
   
+  // Facility metrics
+  totalBlocks?: number;
+  
   // Time-based metrics
   ticketsThisWeek: number;
   ticketsThisMonth: number;

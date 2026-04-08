@@ -1,297 +1,164 @@
 /**
  * BIUST Smart Maintenance System - Authentication Store
  * 
- * This Zustand store manages authentication state for both public and private sides.
- * It handles user login, logout, session management, and role-based access control.
+ * Manages the entire session lifecycle, from public student logins to 
+ * complex RBAC for staff and coordinators. 
+ * 
+ * FEATURES: Authentication, Session Management, RBAC, Student Database
  */
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { User, UserRole, PublicAuthData, StudentImportData } from '../types';
+import API from '../services/api';
 
-/**
- * Authentication store state interface
- */
 interface AuthState {
-  // Current user and session
   user: User | null;
   isAuthenticated: boolean;
-  isPublicSide: boolean;          // True if logged in via public side (block → room → key)
-  
-  // Finance PIN unlock (for coordinators)
+  isPublicSide: boolean;
   isFinanceUnlocked: boolean;
-  
-  // Internal student database (populated via CSV imports)
   studentDatabase: Record<string, User>;
-  
-  // Actions
-  loginPublic: (authData: PublicAuthData) => void;
-  loginPrivate: (userData: User, token: string) => void;
+
+  loginPublic: (authData: PublicAuthData) => Promise<void>;
+  loginPrivate: (token: string, email: string, role?: UserRole, user_id?: string) => void;
   logout: () => void;
   unlockFinance: (pin: string) => boolean;
   lockFinance: () => void;
   importStudents: (students: StudentImportData[]) => void;
-  
-  // Authorization helpers
+
   hasRole: (role: UserRole) => boolean;
   hasAnyRole: (roles: UserRole[]) => boolean;
   canAccessFinance: () => boolean;
 }
 
 /**
- * Mock function to validate public login credentials
- * In production, this would call a backend API
- * 
- * @param authData - Block, room, and digital key
- * @param studentDatabase - Current database of students/keys
- * @returns User data if credentials are valid, null otherwise
+ * Validates public credentials against the local cache.
  */
 const validatePublicLogin = (authData: PublicAuthData, studentDatabase: Record<string, User>): User | null => {
-  // Create lookup key from auth data
-  // The UI provides block as "Block A" and room as "101"
-  const lookupKey = `${authData.block}_${authData.room}_${authData.digitalKey}`;
-  return studentDatabase[lookupKey] || null;
+  const key = `${authData.block}_${authData.room}_${authData.digitalKey}`;
+  return studentDatabase[key] || null;
 };
 
 /**
- * Mock function to validate private login credentials
- * In production, this would call a backend API with JWT authentication
- * 
- * @param email - User email
- * @param password - User password
- * @returns Object with user data and JWT token if valid, null otherwise
- */
-const validatePrivateLogin = (email: string, password: string): { user: User; token: string } | null => {
-  // Temporary credentials for development/recovery
-  const mockStaff: Record<string, User> = {
-    'coordinator@biust.ac.bw': {
-      id: 'staff-1',
-      name: 'Kagiso Rapula',
-      role: 'coordinator',
-      email: 'coordinator@biust.ac.bw'
-    },
-    'operator@biust.ac.bw': {
-      id: 'staff-2',
-      name: 'Bonolo Korong',
-      role: 'operator',
-      email: 'operator@biust.ac.bw'
-    },
-    'technician@biust.ac.bw': {
-      id: 'staff-3',
-      name: 'Kagiso',
-      role: 'technician',
-      email: 'technician@biust.ac.bw'
-    },
-    'assistant@biust.ac.bw': {
-      id: 'staff-4',
-      name: 'Karabo Rapelang',
-      role: 'campus_assistant',
-      email: 'assistant@biust.ac.bw'
-    }
-  };
-
-  const passwords: Record<string, string> = {
-    'coordinator@biust.ac.bw': 'coord123',
-    'operator@biust.ac.bw': 'oper123',
-    'technician@biust.ac.bw': 'tech123',
-    'assistant@biust.ac.bw': 'assist123'
-  };
-
-  if (mockStaff[email] && passwords[email] === password) {
-    return {
-      user: mockStaff[email],
-      token: 'mock-jwt-token-' + Math.random().toString(36).substr(2)
-    };
-  }
-
-  return null;
-};
-
-
-/**
- * Authentication store using Zustand with persistence
- * Persists to localStorage to maintain session across page refreshes
+ * Centralized authentication store with persistence.
  */
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
-      // Initial state
       user: null,
       isAuthenticated: false,
       isPublicSide: false,
       isFinanceUnlocked: false,
-      
-      // Default student database (empty for production)
       studentDatabase: {},
-      
+
       /**
-       * Login via public side (block → room → digital key)
-       * Used by students and staff to access the reporting interface
-       * 
-       * @param authData - Block, room, and digital key combination
+       * Signs in a resident using their room details.
+       * Exclusively uses the API for verification.
        */
-      loginPublic: (authData: PublicAuthData) => {
-        const { studentDatabase } = get();
-        const user = validatePublicLogin(authData, studentDatabase);
-        
-        if (user) {
+      loginPublic: async (authData) => {
+        try {
+          const { data } = await API.post('/login/public', authData);
+          if (data.token) localStorage.setItem('token', data.token);
+
+          set({ 
+            user: data.user, 
+            isAuthenticated: true, 
+            isPublicSide: true, 
+            isFinanceUnlocked: false 
+          });
+        } catch (error: any) {
+          console.error('Resident login failed:', error);
+          throw new Error(error.response?.data?.message || 'Authentication failed. Please verify your room details and key.');
+        }
+      },
+
+      /**
+       * Authenticates staff using a JWT token.
+       */
+      loginPrivate: (token, email, role, user_id) => {
+        try {
+          localStorage.setItem('token', token);
+          
+          if (!role || !user_id) {
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            role = payload.role;
+            user_id = payload.user_id;
+          }
+
+          if (!role || !user_id) throw new Error('Incomplete token data');
+
           set({
-            user,
+            user: { id: user_id, name: email?.split('@')[0] || 'Staff', role, email: email || '' },
             isAuthenticated: true,
-            isPublicSide: true,
+            isPublicSide: false,
             isFinanceUnlocked: false
           });
-        } else {
-          throw new Error('Invalid credentials. Please check your block, room, and digital key.');
+        } catch {
+          throw new Error('Could not process the secure token.');
         }
       },
-      
+
       /**
-       * Login via private side (JWT with RBAC)
-       * Used by campus assistants, operators, technicians, and coordinators
-       * 
-       * @param userData - User data from JWT validation
-       * @param token - JWT token for API authentication
-       */
-      loginPrivate: (userData: User, token: string) => {
-        set({
-          user: userData,
-          isAuthenticated: true,
-          isPublicSide: false,
-          isFinanceUnlocked: false
-        });
-        
-        // Store JWT token for API calls
-        localStorage.setItem('jwt_token', token);
-      },
-      
-      /**
-       * Logout current user and clear session data
-       * Clears all authentication state and removes stored tokens
+       * Ends the current session and clears all security tokens.
        */
       logout: () => {
-        set({
-          user: null,
-          isAuthenticated: false,
-          isPublicSide: false,
-          isFinanceUnlocked: false
-        });
-        
-        // Clear JWT token
-        localStorage.removeItem('jwt_token');
+        set({ user: null, isAuthenticated: false, isPublicSide: false, isFinanceUnlocked: false });
+        localStorage.removeItem('token');
       },
-      
+
       /**
-       * Unlock finance module with PIN
-       * Only coordinators can access the finance module
-       * Requires additional PIN authentication for security
-       * 
-       * @param pin - Finance module PIN
-       * @returns True if unlock successful
+       * Access control for sensitive financial data.
        */
-      unlockFinance: (pin: string): boolean => {
-        const { user } = get();
-        
-        // Only coordinators can access finance
-        if (user?.role !== 'coordinator') {
-          return false;
-        }
-        
-        // Robust PIN check - in production, this should be a call to a secure server
-        // For security, the PIN is never stored in the client state except temporarily
-        const isValid = pin === '1234'; // In production, this would be a secure verification
-        
-        if (isValid) {
+      unlockFinance: (pin) => {
+        const isCoord = get().user?.role === 'coordinator';
+        if (isCoord && pin === '1234') {
           set({ isFinanceUnlocked: true });
           return true;
         }
-        
         return false;
       },
-      
+
+      lockFinance: () => set({ isFinanceUnlocked: false }),
+
       /**
-       * Lock finance module
-       * Used when coordinator navigates away or manually locks
+       * Imports student records for offline validation fallback.
        */
-      lockFinance: () => {
-        set({ isFinanceUnlocked: false });
-      },
-      
-      /**
-       * Import student data from CSV/Excel
-       * Only coordinators can perform this action
-       * 
-       * @param studentData - Array of student details including digital keys
-       */
-      importStudents: (studentData: StudentImportData[]) => {
-        const { user, studentDatabase } = get();
-        
-        if (user?.role !== 'coordinator') {
-          throw new Error('Permission denied. Only coordinators can import student data.');
-        }
-        
-        const newDatabase = { ...studentDatabase };
-        
-        studentData.forEach(student => {
-          const key = `${student.block}_${student.room}_${student.digitalKey}`;
+      importStudents: (studentData) => {
+        if (get().user?.role !== 'coordinator') throw new Error('Restricted to coordinators only.');
+
+        const newDatabase = { ...get().studentDatabase };
+        studentData.forEach(s => {
+          const key = `${s.block}_${s.room}_${s.digitalKey}`;
           newDatabase[key] = {
-            id: `student-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-            name: student.name,
+            id: `std-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
+            name: s.name,
             role: 'student',
-            studentId: student.studentId,
-            omang: student.omang,
-            level: student.level,
-            block: student.block,
-            room: student.room,
-            email: `${student.name.toLowerCase().replace(' ', '.')}@studentmail.biust.ac.bw`
+            studentId: s.studentId,
+            omang: s.omang,
+            level: s.level,
+            block: s.block,
+            room: s.room,
+            email: `${s.name.toLowerCase().replace(/\s+/g, '.')}@studentmail.biust.ac.bw`,
           };
         });
-        
         set({ studentDatabase: newDatabase });
       },
-      
+
       /**
-       * Check if current user has specific role
-       * 
-       * @param role - Role to check
-       * @returns True if user has the role
+       * Helper methods for UI-side permission checks.
        */
-      hasRole: (role: UserRole): boolean => {
-        const { user } = get();
-        return user?.role === role;
-      },
-      
-      /**
-       * Check if current user has any of the specified roles
-       * 
-       * @param roles - Array of roles to check
-       * @returns True if user has at least one of the roles
-       */
-      hasAnyRole: (roles: UserRole[]): boolean => {
-        const { user } = get();
-        return user ? roles.includes(user.role) : false;
-      },
-      
-      /**
-       * Check if current user can access finance module
-       * Must be coordinator AND have finance unlocked
-       * 
-       * @returns True if user can access finance
-       */
-      canAccessFinance: (): boolean => {
-        const { user, isFinanceUnlocked } = get();
-        return user?.role === 'coordinator' && isFinanceUnlocked;
-      }
+      hasRole: (role) => get().user?.role === role,
+      hasAnyRole: (roles) => roles.includes(get().user?.role as UserRole),
+      canAccessFinance: () => get().user?.role === 'coordinator' && get().isFinanceUnlocked,
     }),
     {
-      name: 'biust-auth-storage',  // localStorage key
-      // Only persist essential data, not sensitive info like PIN
+      name: 'biust-auth-storage',
       partialize: (state) => ({
         user: state.user,
         isAuthenticated: state.isAuthenticated,
         isPublicSide: state.isPublicSide,
-        studentDatabase: state.studentDatabase
-      })
+        studentDatabase: state.studentDatabase,
+      }),
     }
   )
 );

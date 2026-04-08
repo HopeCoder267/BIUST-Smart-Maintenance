@@ -1,248 +1,151 @@
 /**
  * BIUST Smart Maintenance System - Private Side Layout
  * 
- * IDE-style workspace layout for operations staff.
- * Features top toolbar, left sidebar, right sidebar, and bottom panel.
+ *
+ * role-specific navigation, and system status.
+ * 
+ * FEATURES: Navigation, Role-Based Access, Sidebar, Toolbar
  */
 
 import { Outlet, useNavigate, Link, useLocation } from 'react-router';
 import { useAuthStore } from '../store/authStore';
 import { Button } from '../components/ui/button';
 import {
-  Search,
-  Bell,
-  Settings,
-  LogOut,
-  User,
-  ClipboardList,
-  Package,
-  FolderKanban,
-  Box,
-  Users,
-  BarChart3,
-  DollarSign,
-  Building2,
-  FileText,
-  AlertCircle,
+  Search, Bell, Settings, LogOut, User, ClipboardList, Package,
+  FolderKanban, Box, Users, BarChart3, DollarSign, Building2,
+  FileText, AlertCircle,
 } from 'lucide-react';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { cn } from '../components/ui/utils';
 
-/**
- * PrivateLayout Component
- * 
- * IDE-style workspace with:
- * - Top toolbar: Search, alerts, reports, settings
- * - Left sidebar: Main navigation
- * - Right sidebar: Filters, notes, quick actions
- * - Bottom panel: Logs, system messages
- * - Central content area
- */
 export default function PrivateLayout() {
   const navigate = useNavigate();
-  const location = useLocation();
-  const { user, isAuthenticated, isPublicSide, logout, hasRole, hasAnyRole } = useAuthStore();
+  const { pathname } = useLocation();
+  const { user, isAuthenticated, isPublicSide, logout } = useAuthStore();
   
   /**
-   * Redirect to login if user is not authenticated or is on public side
+   * Security gate: Redirect unauthorized access to login.
+   * Also handles intelligent dashboard routing on initial load.
    */
   useEffect(() => {
     if (!isAuthenticated || isPublicSide) {
       navigate('/private', { replace: true });
-      return;
-    }
-    
-    // Redirect to appropriate dashboard based on role
-    if (location.pathname === '/dashboard') {
-      const roleRoutes: Record<string, string> = {
+    } else if (pathname === '/dashboard') {
+      const routes: Record<string, string> = {
         operator: '/dashboard/operator',
         technician: '/dashboard/technician',
         campus_assistant: '/dashboard/assistant',
         coordinator: '/dashboard/coordinator',
       };
-      
-      if (user?.role && roleRoutes[user.role]) {
-        navigate(roleRoutes[user.role], { replace: true });
-      }
+      const target = routes[user?.role || ''] || '/private';
+      navigate(target, { replace: true });
     }
-  }, [isAuthenticated, isPublicSide, navigate, location, user]);
-  
-  /**
-   * Handle logout
-   */
+  }, [isAuthenticated, isPublicSide, navigate, pathname, user]);
+
   const handleLogout = () => {
     logout();
     navigate('/private', { replace: true });
   };
-  
-  // Don't render if not authenticated
-  if (!isAuthenticated || isPublicSide || !user) {
-    return null;
-  }
-  
+
   /**
-   * Navigation items based on user role
+   * Navigation mapping based on user permissions.
+   * Memoized to prevent unnecessary re-calculating on layout renders.
    */
-  const getNavigationItems = () => {
-    const baseItems = [
-      {
-        label: 'Tickets',
-        icon: ClipboardList,
-        path: `/dashboard/${user.role === 'campus_assistant' ? 'assistant' : user.role}`,
-        roles: ['operator', 'technician', 'campus_assistant', 'coordinator'],
-      },
-      {
-        label: 'Job Cards',
-        icon: FileText,
-        path: '/dashboard/job-cards',
-        roles: ['technician', 'coordinator'],
-      },
-      {
-        label: 'Inventory',
-        icon: Package,
-        path: '/dashboard/inventory',
-        roles: ['operator', 'technician', 'coordinator'],
-      },
-      {
-        label: 'Projects',
-        icon: FolderKanban,
-        path: '/dashboard/projects',
-        roles: ['coordinator'],
-      },
-      {
-        label: 'Assets',
-        icon: Box,
-        path: '/dashboard/assets',
-        roles: ['coordinator'],
-      },
-      {
-        label: 'Suppliers',
-        icon: Users,
-        path: '/dashboard/suppliers',
-        roles: ['coordinator'],
-      },
-      {
-        label: 'Analytics',
-        icon: BarChart3,
-        path: '/dashboard/analytics',
-        roles: ['operator', 'coordinator'],
-      },
-      {
-        label: 'Finance',
-        icon: DollarSign,
-        path: '/dashboard/finance',
-        roles: ['coordinator'],
-      },
-      {
-        label: 'Blocks & Areas',
-        icon: Building2,
-        path: '/dashboard/blocks',
-        roles: ['coordinator'],
-      },
+  const navItems = useMemo(() => {
+    if (!user) return [];
+    
+    const items = [
+      { label: 'Tickets', icon: ClipboardList, path: `/dashboard/${user.role === 'campus_assistant' ? 'assistant' : user.role}`, roles: ['operator', 'technician', 'campus_assistant', 'coordinator'] },
+      { label: 'Job Cards', icon: FileText, path: '/dashboard/job-cards', roles: ['technician', 'coordinator'] },
+      { label: 'Inventory', icon: Package, path: '/dashboard/inventory', roles: ['operator', 'technician', 'coordinator'] },
+      { label: 'Projects', icon: FolderKanban, path: '/dashboard/projects', roles: ['coordinator'] },
+      { label: 'Assets', icon: Box, path: '/dashboard/assets', roles: ['coordinator'] },
+      { label: 'Suppliers', icon: Users, path: '/dashboard/suppliers', roles: ['coordinator'] },
+      { label: 'Analytics', icon: BarChart3, path: '/dashboard/analytics', roles: ['operator', 'coordinator'] },
+      { label: 'Finance', icon: DollarSign, path: '/dashboard/finance', roles: ['coordinator'] },
+      { label: 'Blocks & Areas', icon: Building2, path: '/dashboard/blocks', roles: ['coordinator'] },
     ];
     
-    // Filter items based on user role
-    return baseItems.filter(item => item.roles.includes(user.role));
-  };
-  
-  const navItems = getNavigationItems();
-  
+    return items.filter(i => i.roles.includes(user.role));
+  }, [user]);
+
+  if (!isAuthenticated || isPublicSide || !user) return null;
+
   return (
-    <div className="h-screen flex flex-col bg-background text-foreground">
-      {/* Top Toolbar */}
-      <header className="h-14 bg-white border-b border-border flex items-center px-4 gap-4">
-        {/* Logo */}
-        <div className="flex items-center gap-2 mr-4">
-          <div className="w-8 h-8 bg-primary rounded flex items-center justify-center">
-            <Building2 className="w-5 h-5 text-white" />
-          </div>
-          <span className="font-semibold text-sm text-foreground">BIUST Maintenance</span>
-        </div>
-        
-        {/* Search */}
-        <div className="flex-1 max-w-md">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <input
-              type="text"
-              placeholder="Search tickets, jobs, inventory..."
-              className="w-full bg-muted text-foreground placeholder-muted-foreground rounded-md pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+    <div className="h-screen flex flex-col bg-background">
+      {/* Top Navigation Bar */}
+      <header className="h-14 bg-white border-b flex items-center px-4 gap-4 z-10">
+        <div className="flex items-center gap-2 mr-4 min-w-[180px]">
+
+          <div className="inline-flex items-center justify-center w-14 h-10 bg-white rounded-2xl mb-4 shadow-lg shadow-primary/20 overflow-hidden">
+            <img
+                src="/BIUST-logo (1).svg"
+                alt="BIUST Logo"
+                className="w-full h-full object-contain p-1"
             />
           </div>
+
+          <span className="font-bold text-sm tracking-tight">SMART MAINTENANCE</span>
         </div>
         
-        {/* Toolbar Actions */}
+        <div className="flex-1 max-w-md relative hidden md:block">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <input
+            placeholder="Search tickets or resources..."
+            className="w-full bg-muted rounded-md pl-10 pr-4 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary transition-all"
+          />
+        </div>
+        
         <div className="flex items-center gap-2 ml-auto">
-          <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground hover:bg-muted">
-            <Bell className="w-5 h-5" />
-          </Button>
-          <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground hover:bg-muted">
-            <Settings className="w-5 h-5" />
-          </Button>
+          <Button variant="ghost" size="icon" className="text-muted-foreground"><Bell className="w-5 h-5" /></Button>
+          <Button variant="ghost" size="icon" className="text-muted-foreground"><Settings className="w-5 h-5" /></Button>
           
-          {/* User Menu */}
-          <div className="flex items-center gap-2 ml-2 px-3 py-2 bg-muted rounded-md border border-border">
-            <div className="w-7 h-7 bg-primary rounded-full flex items-center justify-center">
-              <User className="w-4 h-4 text-white" />
+          <div className="flex items-center gap-3 ml-2 px-3 py-1.5 bg-muted/50 rounded-lg border">
+            <div className="w-7 h-7 bg-primary/20 rounded-full flex items-center justify-center">
+              <User className="w-4 h-4 text-primary" />
             </div>
-            <div className="text-left">
-              <p className="text-sm font-medium text-foreground">{user.name}</p>
-              <p className="text-xs text-muted-foreground capitalize">{user.role.replace('_', ' ')}</p>
+            <div className="hidden sm:block text-left">
+              <p className="text-xs font-bold leading-tight">{user.name}</p>
+              <p className="text-[10px] text-muted-foreground uppercase font-medium">{user.role.replace('_', ' ')}</p>
             </div>
           </div>
           
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleLogout}
-            className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-          >
-            <LogOut className="w-5 h-5" />
-          </Button>
+          <Button variant="ghost" size="icon" onClick={handleLogout} className="hover:text-destructive"><LogOut className="w-5 h-5" /></Button>
         </div>
       </header>
       
-      {/* Main Content Area */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Left Sidebar - Navigation */}
-        <aside className="w-56 bg-white border-r border-border flex flex-col">
-          <nav className="flex-1 py-4">
-            <div className="px-2 space-y-1">
-              {navItems.map((item) => {
-                const Icon = item.icon;
-                const isActive = location.pathname === item.path;
-                
-                return (
-                  <Link
-                    key={item.path}
-                    to={item.path}
-                    className={cn(
-                      'flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors',
-                      isActive
-                        ? 'bg-primary/10 text-primary'
-                        : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                    )}
-                  >
-                    <Icon className="w-5 h-5" />
-                    {item.label}
-                  </Link>
-                );
-              })}
-            </div>
+        {/* Main Navigation Sidebar */}
+        <aside className="w-64 bg-white border-r flex flex-col hidden lg:flex">
+          <nav className="flex-1 py-6 px-3 space-y-1 overflow-y-auto">
+            {navItems.map((item) => (
+              <Link
+                key={item.path}
+                to={item.path}
+                className={cn(
+                  'flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all group',
+                  pathname === item.path ? 'bg-primary text-primary-foreground shadow-md' : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                )}
+              >
+                <item.icon className={cn('w-4.5 h-4.5 transition-transform group-hover:scale-110', pathname === item.path ? 'text-white' : 'text-muted-foreground')} />
+                {item.label}
+              </Link>
+            ))}
           </nav>
           
-          {/* Sidebar Footer */}
-          <div className="p-4 border-t border-border">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <AlertCircle className="w-4 h-4" />
-              <span>System Status: Online</span>
+          <div className="p-4 border-t bg-muted/20">
+            <div className="flex items-center gap-2 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+              System Status: Operational
             </div>
           </div>
         </aside>
         
-        {/* Center Content */}
-        <main className="flex-1 overflow-auto bg-slate-50 p-6">
-          <Outlet />
+        {/* Core Content View */}
+        <main className="flex-1 overflow-auto bg-slate-50/50 p-4 md:p-8">
+          <div className="max-w-7xl mx-auto">
+            <Outlet />
+          </div>
         </main>
       </div>
     </div>

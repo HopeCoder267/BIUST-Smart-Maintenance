@@ -19,7 +19,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
 import { toast } from 'sonner';
 import { Building2, DoorOpen, Key, ArrowRight } from 'lucide-react';
-import { mockBlocks } from '../../services/mockData';
+import { useDataStore } from '../../store/dataStore';
+import { useEffect } from 'react';
 
 /**
  * PublicLogin Component
@@ -30,6 +31,14 @@ import { mockBlocks } from '../../services/mockData';
 export default function PublicLogin() {
   const navigate = useNavigate();
   const { loginPublic } = useAuthStore();
+  const { blocks, fetchBlocks, fetchRooms } = useDataStore();
+
+  const [rooms, setRooms] = useState<string[]>([]);
+  const [isRoomsLoading, setIsRoomsLoading] = useState(false);
+
+  useEffect(() => {
+    fetchBlocks();
+  }, [fetchBlocks]);
   
   // Form state
   const [step, setStep] = useState(1);
@@ -42,9 +51,18 @@ export default function PublicLogin() {
    * Handle block selection
    * Advances to room selection step
    */
-  const handleBlockSelect = (blockName: string) => {
+  const handleBlockSelect = async (blockName: string) => {
     setSelectedBlock(blockName);
     setStep(2);
+    setIsRoomsLoading(true);
+    try {
+      const fetchedRooms = await fetchRooms(blockName);
+      setRooms(fetchedRooms);
+    } catch (error) {
+      toast.error('Failed to load rooms');
+    } finally {
+      setIsRoomsLoading(false);
+    }
   };
   
   /**
@@ -60,14 +78,14 @@ export default function PublicLogin() {
    * Handle form submission
    * Validates credentials and logs in user
    */
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     
     try {
       // Attempt login with provided credentials
       // The authStore will validate the digital key and return the correct user
-      loginPublic(
+      await loginPublic(
         {
           block: selectedBlock,
           room: selectedRoom,
@@ -100,18 +118,20 @@ export default function PublicLogin() {
     setSelectedBlock('');
     setSelectedRoom('');
     setDigitalKey('');
+    setRooms([]);
   };
-  
-  // Mock room numbers (in production, these would come from database based on selected block)
-  const mockRooms = ['101', '102', '103', '104', '105', '201', '202', '203', '301'];
-  
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-orange-100 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-primary rounded-2xl mb-4 shadow-lg shadow-primary/20">
-            <Building2 className="w-8 h-8 text-white" />
+          <div className="inline-flex items-center justify-center w-20 h-20 bg-white rounded-2xl mb-4 shadow-lg shadow-primary/20 overflow-hidden">
+            <img
+                src="/BIUST-logo (1).svg"
+                alt="BIUST Logo"
+                className="w-full h-full object-contain p-1"
+            />
           </div>
           <h1 className="text-3xl font-bold text-foreground mb-2">
             BIUST Smart Maintenance
@@ -135,7 +155,7 @@ export default function PublicLogin() {
           <CardContent>
             {/* Progress Indicator */}
             <div className="flex items-center justify-between mb-6">
-              {[1, 2, 3].map((s) => (
+              {Array.isArray([1, 2, 3]) && [1, 2, 3].map((s) => (
                 <div key={s} className="flex items-center flex-1">
                   <div
                     className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
@@ -168,11 +188,11 @@ export default function PublicLogin() {
                     <SelectValue placeholder="Select your block" />
                   </SelectTrigger>
                   <SelectContent className="bg-white border-border text-foreground">
-                    {mockBlocks.map((block) => (
+                    {Array.isArray(blocks) ? blocks.map((block) => (
                       <SelectItem key={block.id} value={block.name}>
                         {block.name} - {block.description}
                       </SelectItem>
-                    ))}
+                    )) : null}
                   </SelectContent>
                 </Select>
                 
@@ -203,16 +223,20 @@ export default function PublicLogin() {
                   Selected: <strong className="text-foreground">{selectedBlock}</strong>
                 </p>
                 
-                <Select value={selectedRoom} onValueChange={handleRoomSelect}>
+                <Select value={selectedRoom} onValueChange={handleRoomSelect} disabled={isRoomsLoading}>
                   <SelectTrigger id="room" className="bg-muted border-border text-foreground">
-                    <SelectValue placeholder="Select your room" />
+                    <SelectValue placeholder={isRoomsLoading ? "Loading rooms..." : "Select your room"} />
                   </SelectTrigger>
                   <SelectContent className="bg-white border-border text-foreground">
-                    {mockRooms.map((room) => (
-                      <SelectItem key={room} value={room}>
-                        Room {room}
-                      </SelectItem>
-                    ))}
+                    {Array.isArray(rooms) && rooms.length > 0 ? (
+                      rooms.map((room) => (
+                        <SelectItem key={room} value={room}>
+                          Room {room}
+                        </SelectItem>
+                      ))
+                    ) : !isRoomsLoading ? (
+                      <div className="p-2 text-sm text-muted-foreground text-center">No rooms found</div>
+                    ) : null}
                   </SelectContent>
                 </Select>
               </div>
@@ -290,7 +314,7 @@ export default function PublicLogin() {
         <div className="mt-6 text-center text-xs text-slate-500">
           <p>Digital keys are reset each semester.</p>
           <p className="mt-1">
-            For assistance, contact IT Support: support@biust.ac.bw
+            For assistance, contact IT Support: BSMsupport@biust.ac.bw
           </p>
         </div>
       </div>

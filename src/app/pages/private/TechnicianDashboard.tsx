@@ -1,16 +1,13 @@
 /**
  * BIUST Smart Maintenance System - Technician Dashboard
  * 
- * Interface for technicians to view assigned jobs, update progress, and complete work
- * Features:
- * - View assigned tickets
- * - Update job progress
- * - Add work notes
- * - Mark jobs as complete
- * - Track work history
+ * Field-ready interface for maintenance technicians.
+ * Designed for quick status updates, job card management, and material tracking.
+ * 
+ * FEATURES: Job Assignments, Field Updates, Work History, PPCF Digital
  */
 
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useAuthStore } from '../../store/authStore';
 import { useDataStore } from '../../store/dataStore';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
@@ -25,68 +22,41 @@ import { format } from 'date-fns';
 import ProgressTimeline from '../../components/ProgressTimeline';
 import { Ticket, ProgressStage } from '../../types';
 
-/**
- * TechnicianDashboard Component
- * 
- * Dashboard for technicians to manage their assigned work
- */
 export default function TechnicianDashboard() {
   const { user } = useAuthStore();
-  const { tickets, getTicketsByUser, updateProgress, updateStatus, addTicketNote } = useDataStore();
+  const { tickets, fetchTickets, updateProgress, updateStatus } = useDataStore();
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
-  const [isUpdateDialogOpen, setIsUpdateDialogOpen] = useState(false);
-  const [isCompleteDialogOpen, setIsCompleteDialogOpen] = useState(false);
-  const [selectedStage, setSelectedStage] = useState<ProgressStage>('work_in_progress');
-  const [updateNotes, setUpdateNotes] = useState('');
-  const [completionNotes, setCompletionNotes] = useState('');
-  
-  if (!user) return null;
-  
-  // Get tickets assigned to current technician
-  const assignedTickets = tickets.filter(t => t.assignedTo?.id === user.id);
-  const activeTickets = assignedTickets.filter(t => t.status === 'in_progress' || t.status === 'open');
-  const completedTickets = assignedTickets.filter(t => t.status === 'completed');
-  
-  /**
-   * Handle progress update
-   */
-  const handleUpdateProgress = () => {
-    if (!selectedTicket || !updateNotes.trim()) return;
-    
-    updateProgress(selectedTicket.id, selectedStage, updateNotes, user);
-    setIsUpdateDialogOpen(false);
-    setSelectedTicket(null);
-    setUpdateNotes('');
-  };
-  
-  /**
-   * Handle job completion
-   */
-  const handleCompleteJob = () => {
-    if (!selectedTicket || !completionNotes.trim()) return;
-    
-    // Update to completed stage
-    updateProgress(selectedTicket.id, 'work_completed', completionNotes, user);
-    updateStatus(selectedTicket.id, 'completed');
-    
-    setIsCompleteDialogOpen(false);
-    setSelectedTicket(null);
-    setCompletionNotes('');
-  };
-  
-  /**
-   * Get priority badge styling
-   */
-  const getPriorityBadge = (priority?: string) => {
-    const styles = {
-      critical: 'bg-red-500 text-white',
-      high: 'bg-orange-500 text-white',
-      medium: 'bg-yellow-500 text-white',
-      low: 'bg-blue-500 text-white',
+  const [dialogs, setDialogs] = useState({ update: false, complete: false });
+  const [isLoading, setIsLoading] = useState(false);
+  const [form, setForm] = useState({ stage: 'work_in_progress' as ProgressStage, notes: '' });
+
+  useEffect(() => { 
+    const load = async () => {
+        setIsLoading(true);
+        await fetchTickets();
+        setIsLoading(false);
     };
-    
-    return priority ? styles[priority as keyof typeof styles] : 'bg-slate-500 text-white';
+    load();
+  }, [fetchTickets]);
+  
+  const assigned = useMemo(() => tickets.filter(t => t.assigned_to === user?.id), [tickets, user]);
+  const activeTickets = useMemo(() => assigned.filter(t => t.status !== 'completed' && t.status !== 'closed'), [assigned]);
+  const historyTickets = useMemo(() => assigned.filter(t => t.status === 'completed' || t.status === 'closed'), [assigned]);
+
+  const handleUpdate = async (isClosing = false) => {
+    if (!selectedTicket || !form.notes.trim() || !user) return;
+    try {
+      await updateProgress(selectedTicket.id, isClosing ? 'resolved' : form.stage, form.notes, user);
+      if (isClosing) await updateStatus(selectedTicket.id, 'completed');
+      setDialogs({ update: false, complete: false });
+      setForm({ stage: 'work_in_progress', notes: '' });
+      setSelectedTicket(null);
+    } catch (e) {
+      toast.error('Failed to sync update');
+    }
   };
+
+  if (!user) return null;
   
   return (
     <div className="space-y-6">
@@ -117,7 +87,7 @@ export default function TechnicianDashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground mb-1">Total Assigned</p>
-                <p className="text-3xl font-bold text-foreground">{assignedTickets.length}</p>
+                <p className="text-3xl font-bold text-foreground">{assigned.length}</p>
               </div>
               <div className="w-12 h-12 bg-purple-500/10 rounded-lg flex items-center justify-center">
                 <Calendar className="w-6 h-6 text-purple-500" />
@@ -131,7 +101,7 @@ export default function TechnicianDashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground mb-1">Completed</p>
-                <p className="text-3xl font-bold text-foreground">{completedTickets.length}</p>
+                <p className="text-3xl font-bold text-foreground">{historyTickets.length}</p>
               </div>
               <div className="w-12 h-12 bg-green-500/10 rounded-lg flex items-center justify-center">
                 <CheckCircle2 className="w-6 h-6 text-green-500" />
@@ -147,7 +117,14 @@ export default function TechnicianDashboard() {
           <CardTitle className="text-foreground">Your Assigned Jobs</CardTitle>
         </CardHeader>
         <CardContent>
-          {activeTickets.length === 0 ? (
+          {isLoading ? (
+            <div className="text-center py-12">
+              <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
+                <Wrench className="w-8 h-8 text-muted-foreground" />
+              </div>
+              <h3 className="text-lg font-semibold text-foreground mb-2">Loading Jobs...</h3>
+            </div>
+          ) : !Array.isArray(activeTickets) || activeTickets.length === 0 ? (
             <div className="text-center py-12">
               <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
                 <Wrench className="w-8 h-8 text-muted-foreground" />
@@ -178,7 +155,7 @@ export default function TechnicianDashboard() {
                           </div>
                           <div className="flex items-center gap-2">
                             <Calendar className="w-4 h-4 text-primary" />
-                            {format(new Date(ticket.createdAt), 'MMM d, yyyy')}
+                            {ticket.createdAt ? format(new Date(ticket.createdAt), 'MMM d, yyyy') : 'No date available'}
                           </div>
                           <div className="flex items-center gap-2">
                             <Clock className="w-4 h-4 text-primary" />
@@ -228,11 +205,11 @@ export default function TechnicianDashboard() {
                     <div className="mt-4 pt-4 border-t border-border">
                       <p className="text-xs text-muted-foreground mb-2">Progress Timeline:</p>
                       <div className="flex items-center gap-2 flex-wrap">
-                        {ticket.progressHistory.map((entry, index) => (
+                        {Array.isArray(ticket.progressHistory) ? ticket.progressHistory.map((entry, index) => (
                           <Badge key={index} variant="outline" className="text-xs border-border text-muted-foreground">
                             {entry.stage.replace(/_/g, ' ')}
                           </Badge>
-                        ))}
+                        )) : <p className="text-xs text-muted-foreground">No progress history</p>}
                       </div>
                     </div>
                   </CardContent>

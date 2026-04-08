@@ -1,71 +1,42 @@
 /**
- * BIUST Smart Maintenance System - Inventory Management Page
+ * BIUST Smart Maintenance System - Inventory Management
  * 
- * Manage inventory items with automatic updates from job card completions.
- * Features:
- * - View all inventory items
- * - Filter and search
- * - Low stock alerts
- * - Add/edit inventory items
+ * Centralized control for maintenance supplies and hardware.
+ * Features automated low-stock detection and category-based filtering.
+ * 
+ * FEATURES: Inventory Tracking, Stock Levels, Procurement Alerts, Supplies
  */
 
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Badge } from '../../components/ui/badge';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '../../components/ui/table';
-import {
-  Package,
-  Search,
-  AlertTriangle,
-  Plus,
-  TrendingDown,
-  CheckCircle2,
-} from 'lucide-react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
+import { Package, Search, AlertTriangle, Plus, TrendingDown, CheckCircle2 } from 'lucide-react';
 import { useDataStore } from '../../store/dataStore';
 
 export default function InventoryPage() {
-  const { inventory, addInventoryItem, updateStock } = useDataStore();
-  const [searchQuery, setSearchQuery] = useState('');
+  const { inventory, fetchInventory } = useDataStore();
+  const [query, setQuery] = useState('');
+
+  useEffect(() => { fetchInventory(); }, [fetchInventory]);
   
-  /**
-   * Filter inventory based on search
-   */
-  const filteredInventory = inventory.filter((item) =>
-    item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    item.category.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-  
-  /**
-   * Calculate inventory stats
-   */
-  const stats = {
-    totalItems: inventory.length,
-    inStock: inventory.filter((i) => i.status === 'in_stock').length,
-    lowStock: inventory.filter((i) => i.status === 'low_stock').length,
-    outOfStock: inventory.filter((i) => i.status === 'out_of_stock').length,
-  };
-  
-  /**
-   * Get status badge styling
-   */
-  const getStatusBadge = (status: string) => {
-    const styles = {
-      in_stock: 'bg-green-100 text-green-800',
-      low_stock: 'bg-amber-100 text-amber-800',
-      out_of_stock: 'bg-red-100 text-red-800',
-      discontinued: 'bg-slate-100 text-slate-800',
-    };
-    
-    return styles[status as keyof typeof styles] || 'bg-slate-100 text-slate-800';
+  const filtered = useMemo(() => inventory.filter(i => 
+    [i.name, i.category].some(f => f.toLowerCase().includes(query.toLowerCase()))
+  ), [inventory, query]);
+
+  const stats = useMemo(() => ({
+    total: inventory.length,
+    inStock: inventory.filter(i => i.status === 'in_stock').length,
+    low: inventory.filter(i => i.status === 'low_stock').length,
+    out: inventory.filter(i => i.status === 'out_of_stock').length,
+  }), [inventory]);
+
+  const badgeStyles: Record<string, string> = {
+    in_stock: 'bg-emerald-100 text-emerald-800',
+    low_stock: 'bg-amber-100 text-amber-800',
+    out_of_stock: 'bg-rose-100 text-rose-800'
   };
   
   return (
@@ -175,7 +146,13 @@ export default function InventoryPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredInventory.length === 0 ? (
+                {isLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                      Loading inventory...
+                    </TableCell>
+                  </TableRow>
+                ) : !Array.isArray(filteredInventory) || filteredInventory.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                       No items found
@@ -202,10 +179,10 @@ export default function InventoryPage() {
                         {item.minThreshold} {item.unit}
                       </TableCell>
                       <TableCell className="text-muted-foreground">
-                        P {item.unitPrice.toLocaleString()}
+                        P {item.unitPrice !== undefined ? item.unitPrice.toLocaleString() : '0'}
                       </TableCell>
                       <TableCell className="text-muted-foreground">
-                        P {item.totalValue.toLocaleString()}
+                        P {item.totalValue !== undefined ? item.totalValue.toLocaleString() : '0'}
                       </TableCell>
                       <TableCell>
                         <Badge className={getStatusBadge(item.status)}>
@@ -235,7 +212,7 @@ export default function InventoryPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              {inventory
+              {Array.isArray(inventory) && inventory
                 .filter((item) => item.status === 'low_stock' || item.status === 'out_of_stock')
                 .map((item) => (
                   <div

@@ -4,7 +4,7 @@
  * Interface for campus assistants to submit campus-wide reports and monitor tickets
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
@@ -19,9 +19,23 @@ import { useAuthStore } from '../../store/authStore';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 
 export default function CampusAssistantDashboard() {
-  const { tickets, addNotification, blocks } = useDataStore();
+  const { tickets, addNotification, blocks, fetchTickets, fetchBlocks, fetchNotifications } = useDataStore();
   const { user } = useAuthStore();
   const [isReportDialogOpen, setIsReportDialogOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const loadData = async () => {
+      setIsLoading(true);
+      await Promise.all([
+        fetchTickets(),
+        fetchBlocks(),
+        fetchNotifications()
+      ]);
+      setIsLoading(false);
+    };
+    loadData();
+  }, [fetchTickets, fetchBlocks, fetchNotifications]);
   
   // Notification form state
   const [notificationForm, setNotificationForm] = useState({
@@ -36,34 +50,39 @@ export default function CampusAssistantDashboard() {
   
   /**
    * Handle campus-wide report submission
+   * Directly posts to the API via the dataStore.
    */
-  const handleSubmitReport = () => {
+  const handleSubmitReport = async () => {
     if (!notificationForm.title || !notificationForm.message || !user) {
       toast.error('Please fill in all fields');
       return;
     }
 
-    addNotification({
-      type: 'alert',
-      priority: notificationForm.priority,
-      title: notificationForm.title,
-      message: notificationForm.message,
-      targetBlocks: notificationForm.targetBlock === 'all' ? [] : [notificationForm.targetBlock],
-      createdBy: user,
-      isRead: false
-    });
+    try {
+      await addNotification({
+        type: 'alert',
+        priority: notificationForm.priority,
+        title: notificationForm.title,
+        message: notificationForm.message,
+        targetBlocks: notificationForm.targetBlock === 'all' ? [] : [notificationForm.targetBlock],
+        createdBy: user,
+        isRead: false
+      });
 
-    toast.success(notificationForm.targetBlock === 'all' 
-      ? 'Campus-wide alert sent' 
-      : `Alert sent to ${notificationForm.targetBlock}`);
-      
-    setIsReportDialogOpen(false);
-    setNotificationForm({
-      title: '',
-      message: '',
-      priority: 'normal',
-      targetBlock: 'all'
-    });
+      toast.success(notificationForm.targetBlock === 'all' 
+        ? 'Campus-wide alert broadcasted' 
+        : `Alert dispatched to ${notificationForm.targetBlock}`);
+        
+      setIsReportDialogOpen(false);
+      setNotificationForm({
+        title: '',
+        message: '',
+        priority: 'normal',
+        targetBlock: 'all'
+      });
+    } catch (error) {
+      toast.error('System failure: could not dispatch alert.');
+    }
   };
   
   return (
@@ -147,9 +166,9 @@ export default function CampusAssistantDashboard() {
                   </SelectTrigger>
                   <SelectContent className="bg-white border-border text-foreground">
                     <SelectItem value="all">Whole Campus</SelectItem>
-                    {blocks.map(block => (
+                    {Array.isArray(blocks) ? blocks.map(block => (
                       <SelectItem key={block.id} value={block.name}>{block.name}</SelectItem>
-                    ))}
+                    )) : null}
                   </SelectContent>
                 </Select>
               </div>
@@ -211,31 +230,41 @@ export default function CampusAssistantDashboard() {
           <CardTitle className="text-foreground">All Open Tickets</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-3">
-            {openTickets.map((ticket) => (
-              <Card key={ticket.id} className="bg-white border-border hover:bg-muted/30 transition-colors">
-                <CardContent className="p-4">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <h3 className="font-semibold text-foreground mb-1">{ticket.title}</h3>
-                      <p className="text-sm text-muted-foreground mb-2">
-                        {ticket.block} • Room {ticket.room}
-                      </p>
-                      <div className="flex gap-2">
-                        <Badge variant="outline" className="border-border">{ticket.category}</Badge>
-                        {ticket.priority && (
-                          <Badge className="bg-primary text-white">{ticket.priority}</Badge>
-                        )}
+          {isLoading ? (
+            <div className="text-center py-8 text-muted-foreground animate-pulse">
+              Loading open tickets...
+            </div>
+          ) : !Array.isArray(openTickets) || openTickets.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              No open tickets found
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {openTickets.map((ticket) => (
+                <Card key={ticket.id} className="bg-white border-border hover:bg-muted/30 transition-colors">
+                  <CardContent className="p-4">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <h3 className="font-semibold text-foreground mb-1">{ticket.title}</h3>
+                        <p className="text-sm text-muted-foreground mb-2">
+                          {ticket.block} • Room {ticket.room}
+                        </p>
+                        <div className="flex gap-2">
+                          <Badge variant="outline" className="border-border">{ticket.category}</Badge>
+                          {ticket.priority && (
+                            <Badge className="bg-primary text-white">{ticket.priority}</Badge>
+                          )}
+                        </div>
                       </div>
+                      <Badge className="bg-orange-100 text-orange-800 border-none">
+                        {ticket.status ? ticket.status.replace('_', ' ') : 'Open'}
+                      </Badge>
                     </div>
-                    <Badge className="bg-orange-100 text-orange-800 border-none">
-                      {ticket.status.replace('_', ' ')}
-                    </Badge>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
