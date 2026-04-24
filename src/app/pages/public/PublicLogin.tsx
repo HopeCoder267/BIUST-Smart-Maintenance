@@ -37,6 +37,7 @@ export default function PublicLogin() {
   const [isRoomsLoading, setIsRoomsLoading] = useState(false);
 
   useEffect(() => {
+    console.log('Fetching blocks for resident login...');
     fetchBlocks();
   }, [fetchBlocks]);
   
@@ -188,11 +189,13 @@ export default function PublicLogin() {
                     <SelectValue placeholder="Select your block" />
                   </SelectTrigger>
                   <SelectContent className="bg-white border-border text-foreground">
-                    {Array.isArray(blocks) ? blocks.map((block) => (
+                    {Array.isArray(blocks) && blocks.length > 0 ? blocks.map((block) => (
                       <SelectItem key={block.id} value={block.name}>
-                        {block.name} - {block.description}
+                        {block.name} - {block.description || 'Residential Block'}
                       </SelectItem>
-                    )) : null}
+                    )) : (
+                      <div className="p-2 text-sm text-muted-foreground text-center">No blocks available</div>
+                    )}
                   </SelectContent>
                 </Select>
                 

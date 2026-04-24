@@ -18,7 +18,7 @@ import { Badge } from '../../components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../../components/ui/dialog';
 import { Label } from '../../components/ui/label';
-import { Search, UserPlus, AlertTriangle, TrendingUp, Clock, CheckCircle2 } from 'lucide-react';
+import { Search, UserPlus, AlertTriangle, TrendingUp, Clock, CheckCircle2, Settings } from 'lucide-react';
 import { TicketPriority } from '../../types';
 import ProgressTimeline from '../../components/ProgressTimeline';
 import API from '../../services/api';
@@ -27,10 +27,15 @@ import { format } from 'date-fns';
 export default function OperatorDashboard() {
   const { tickets, fetchTickets, assignTechnician, updatePriority, dashboardAnalytics: stats } = useDataStore();
   const [query, setQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState({ priority: 'all', status: 'all' });
+  const [selectedPriority, setSelectedPriority] = useState('all');
+  const [selectedStatus, setSelectedStatus] = useState('all');
+  const [selectedTicket, setSelectedTicket] = useState<any>(null);
   const [technicians, setTechnicians] = useState<any[]>([]);
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
   const [isPriorityDialogOpen, setIsPriorityDialogOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => { 
     fetchTickets();
@@ -50,6 +55,32 @@ export default function OperatorDashboard() {
 
   const statusStyles: Record<string, string> = {
     open: 'bg-blue-100 text-blue-700', in_progress: 'bg-amber-100 text-amber-700', completed: 'bg-emerald-100 text-emerald-700', closed: 'bg-slate-100 text-slate-700'
+  };
+
+  /**
+   * Get priority badge styling
+   */
+  const getPriorityBadge = (priority: string) => {
+    const styles: Record<string, string> = {
+      critical: 'bg-red-500',
+      high: 'bg-orange-500', 
+      medium: 'bg-yellow-500',
+      low: 'bg-blue-500'
+    };
+    return styles[priority] || 'bg-gray-500';
+  };
+
+  /**
+   * Get status badge styling
+   */
+  const getStatusBadge = (status: string) => {
+    const styles: Record<string, string> = {
+      open: 'bg-blue-100 text-blue-700',
+      in_progress: 'bg-amber-100 text-amber-700', 
+      completed: 'bg-emerald-100 text-emerald-700',
+      closed: 'bg-slate-100 text-slate-700'
+    };
+    return styles[status] || 'bg-gray-100 text-gray-700';
   };
   
   /**
@@ -105,7 +136,7 @@ export default function OperatorDashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground mb-1">Open Tickets</p>
-                <p className="text-3xl font-bold text-foreground">{dashboardAnalytics?.openTickets || 0}</p>
+                <p className="text-3xl font-bold text-foreground">{stats?.openTickets || 0}</p>
               </div>
               <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
                 <AlertTriangle className="w-6 h-6 text-primary" />
@@ -159,12 +190,12 @@ export default function OperatorDashboard() {
       
       {/* Main Content */}
       <Card className="bg-slate-800 border-slate-700">
-        <CardHeader>
-          <div className="flex items-center justify-between">
+        <CardHeader className="space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <CardTitle className="text-white">All Tickets</CardTitle>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
               {/* Search */}
-              <div className="relative w-64">
+              <div className="relative w-full sm:w-64">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <Input
                   placeholder="Search tickets..."
@@ -176,7 +207,7 @@ export default function OperatorDashboard() {
               
               {/* Priority Filter */}
               <Select value={selectedPriority} onValueChange={(v: any) => setSelectedPriority(v)}>
-                <SelectTrigger className="w-32 bg-slate-700 border-slate-600 text-white">
+                <SelectTrigger className="w-full sm:w-32 bg-slate-700 border-slate-600 text-white">
                   <SelectValue placeholder="Priority" />
                 </SelectTrigger>
                 <SelectContent>

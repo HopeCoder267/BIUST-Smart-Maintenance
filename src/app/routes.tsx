@@ -21,8 +21,7 @@ import CoordinatorDashboard from './pages/private/CoordinatorDashboard';
 import FinanceDashboard from './pages/private/FinanceDashboard';
 import InventoryPage from './pages/private/InventoryPage';
 import BlockManagement from './pages/private/BlockManagement';
-
-// Shared Pages
+import PreventiveMaintenancePage from './pages/private/PreventiveMaintenancePage';
 import NotFound from './pages/NotFound';
 import ErrorBoundary from './components/ErrorBoundary';
 
@@ -107,6 +106,10 @@ export const router = createBrowserRouter([
       {
         path: 'blocks',
         element: <BlockManagement />,
+      },
+      {
+        path: 'preventive-maintenance',
+        element: <PreventiveMaintenancePage />,
       },
     ],
   },

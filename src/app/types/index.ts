@@ -599,6 +599,41 @@ export interface PreventiveMaintenanceSchedule {
 }
 
 // ============================================================================
+// SATISFACTION SURVEYS
+// ============================================================================
+
+/**
+ * Satisfaction survey submitted by users after ticket completion
+ */
+export interface SatisfactionSurvey {
+  id: string;
+  ticketId: string;
+  rating: number; // 1-5 scale
+  feedback?: string;
+  submittedBy: User;
+  createdAt: Date;
+}
+
+// ============================================================================
+// FILE ATTACHMENTS
+// ============================================================================
+
+/**
+ * File attachment for maintenance tickets
+ */
+export interface FileAttachment {
+  id: string;
+  ticketId: string;
+  filename: string;
+  originalName: string;
+  fileSize: number;
+  mimeType: string;
+  filePath: string;
+  uploadedBy: User;
+  createdAt: Date;
+}
+
+// ============================================================================
 // SYSTEM SETTINGS
 // ============================================================================
 

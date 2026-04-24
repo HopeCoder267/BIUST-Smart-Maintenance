@@ -211,58 +211,58 @@ export default function ResidentDashboard() {
       </div>
       
       {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="bg-white border-border shadow-sm">
-          <CardContent className="p-6">
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <Card className="bg-white border-border shadow-sm hover:shadow-md transition-shadow">
+          <CardContent className="p-4 sm:p-6">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground mb-1">Total Reports</p>
-                <p className="text-3xl font-bold text-foreground">{stats.total}</p>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs sm:text-sm text-muted-foreground mb-1 truncate">Total Reports</p>
+                <p className="text-2xl sm:text-3xl font-bold text-foreground">{stats.total}</p>
               </div>
-              <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
-                <FileText className="w-6 h-6 text-primary" />
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0 ml-2">
+                <FileText className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
               </div>
             </div>
           </CardContent>
         </Card>
         
-        <Card className="bg-white border-border shadow-sm">
-          <CardContent className="p-6">
+        <Card className="bg-white border-border shadow-sm hover:shadow-md transition-shadow">
+          <CardContent className="p-4 sm:p-6">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground mb-1">Open</p>
-                <p className="text-3xl font-bold text-foreground">{stats.open}</p>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs sm:text-sm text-muted-foreground mb-1 truncate">Open</p>
+                <p className="text-2xl sm:text-3xl font-bold text-foreground">{stats.open}</p>
               </div>
-              <div className="w-12 h-12 bg-orange-500/10 rounded-lg flex items-center justify-center">
-                <AlertCircle className="w-6 h-6 text-orange-500" />
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-amber-500/10 rounded-lg flex items-center justify-center flex-shrink-0 ml-2">
+                <Clock className="w-5 h-5 sm:w-6 sm:h-6 text-amber-500" />
               </div>
             </div>
           </CardContent>
         </Card>
         
-        <Card className="bg-white border-border shadow-sm">
-          <CardContent className="p-6">
+        <Card className="bg-white border-border shadow-sm hover:shadow-md transition-shadow">
+          <CardContent className="p-4 sm:p-6">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground mb-1">In Progress</p>
-                <p className="text-3xl font-bold text-foreground">{stats.inProgress}</p>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs sm:text-sm text-muted-foreground mb-1 truncate">In Progress</p>
+                <p className="text-2xl sm:text-3xl font-bold text-foreground">{stats.inProgress}</p>
               </div>
-              <div className="w-12 h-12 bg-blue-500/10 rounded-lg flex items-center justify-center">
-                <Wrench className="w-6 h-6 text-blue-500" />
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-500/10 rounded-lg flex items-center justify-center flex-shrink-0 ml-2">
+                <Wrench className="w-5 h-5 sm:w-6 sm:h-6 text-blue-500" />
               </div>
             </div>
           </CardContent>
         </Card>
         
-        <Card className="bg-white border-border shadow-sm">
-          <CardContent className="p-6">
+        <Card className="bg-white border-border shadow-sm hover:shadow-md transition-shadow">
+          <CardContent className="p-4 sm:p-6">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground mb-1">Completed</p>
-                <p className="text-3xl font-bold text-foreground">{stats.completed}</p>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs sm:text-sm text-muted-foreground mb-1 truncate">Completed</p>
+                <p className="text-2xl sm:text-3xl font-bold text-foreground">{stats.completed}</p>
               </div>
-              <div className="w-12 h-12 bg-green-500/10 rounded-lg flex items-center justify-center">
-                <CheckCircle2 className="w-6 h-6 text-green-500" />
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-green-500/10 rounded-lg flex items-center justify-center flex-shrink-0 ml-2">
+                <CheckCircle2 className="w-5 h-5 sm:w-6 sm:h-6 text-green-500" />
               </div>
             </div>
           </CardContent>
@@ -271,15 +271,17 @@ export default function ResidentDashboard() {
       
       {/* Main Content */}
       <Tabs defaultValue="tickets" className="space-y-6">
-        <div className="flex items-center justify-between">
-          <TabsList className="bg-muted border-border">
-            <TabsTrigger value="tickets" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-white text-foreground">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <TabsList className="bg-muted border-border w-full sm:w-auto">
+            <TabsTrigger value="tickets" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-white text-foreground flex-1 sm:flex-initial">
               <FileText className="w-4 h-4" />
-              My Tickets
+              <span className="hidden sm:inline">My Tickets</span>
+              <span className="sm:hidden">Tickets</span>
             </TabsTrigger>
-            <TabsTrigger value="notifications" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-white text-foreground">
+            <TabsTrigger value="notifications" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-white text-foreground flex-1 sm:flex-initial">
               <Bell className="w-4 h-4" />
-              Notifications
+              <span className="hidden sm:inline">Notifications</span>
+              <span className="sm:hidden">Alerts</span>
               {userNotifications.length > 0 && (
                 <Badge className="ml-1 px-1.5 py-0 text-xs bg-red-500 text-white border-none">
                   {userNotifications.length}
@@ -291,7 +293,7 @@ export default function ResidentDashboard() {
           {/* Submit New Report Button */}
           <Dialog open={isSubmitDialogOpen} onOpenChange={setIsSubmitDialogOpen}>
             <DialogTrigger asChild>
-              <Button className="gap-2 bg-primary text-white hover:bg-primary/90 shadow-lg shadow-primary/20">
+              <Button className="gap-2 bg-primary text-white hover:bg-primary/90 shadow-lg shadow-primary/20 w-full sm:w-auto">
                 <Plus className="w-4 h-4" />
                 Submit New Report
               </Button>

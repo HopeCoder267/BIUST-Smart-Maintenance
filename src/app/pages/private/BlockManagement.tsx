@@ -24,6 +24,7 @@ import {
   Upload,
   Edit,
   Archive,
+  Trash2,
   Users,
   Home,
   CheckCircle2,
@@ -34,18 +35,24 @@ import { useAuthStore } from '../../store/authStore';
 import { StudentImportData } from '../../types';
 
 export default function BlockManagement() {
-  const { blocks, addBlock, fetchBlocks } = useDataStore();
+  const { blocks, addBlock, deleteBlock, fetchBlocks } = useDataStore();
   const { importStudents } = useAuthStore();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [newBlockName, setNewBlockName] = useState('');
+  const [newBlockCapacity, setNewBlockCapacity] = useState('100');
+  const [newBlockDescription, setNewBlockDescription] = useState('');
+  const [newBlockArea, setNewBlockArea] = useState('East Campus');
+
+  const [isDeleting, setIsDeleting] = useState<string | null>(null);
 
   useEffect(() => {
     fetchBlocks();
   }, [fetchBlocks]);
   
   /**
-   * Handle block creation
+   * Handle block creation via backend API
+   * We ensure description and capacity are mapped correctly
    */
   const handleAddBlock = async () => {
     if (!newBlockName) {
@@ -56,16 +63,37 @@ export default function BlockManagement() {
     try {
       await addBlock({
         name: newBlockName,
-        capacity: 0,
+        capacity: parseInt(newBlockCapacity) || 0,
+        description: newBlockDescription,
+        area: newBlockArea,
         occupiedRooms: 0,
         status: 'active',
         lastUpdated: new Date()
       });
       setIsAddDialogOpen(false);
       setNewBlockName('');
+      setNewBlockDescription('');
       await fetchBlocks();
     } catch (err) {
-      console.error(err);
+      console.error('Frontend error adding block:', err);
+    }
+  };
+  
+  /**
+   * Handle block deletion from UI
+   * Now hooks into live database deletion
+   */
+  const handleDeleteBlock = async (id: string) => {
+    if (confirm('Are you sure you want to permanently delete this block? This cannot be undone.')) {
+      setIsDeleting(id);
+      try {
+        await deleteBlock(id);
+        await fetchBlocks();
+      } catch (err) {
+        console.error('Delete block failed:', err);
+      } finally {
+        setIsDeleting(null);
+      }
     }
   };
   
@@ -185,6 +213,8 @@ export default function BlockManagement() {
                   <Input
                     placeholder="e.g., Male undergraduate residence"
                     className="bg-muted border-border mt-1 text-foreground"
+                    value={newBlockDescription}
+                    onChange={(e) => setNewBlockDescription(e.target.value)}
                   />
                 </div>
                 
@@ -194,6 +224,8 @@ export default function BlockManagement() {
                     type="number"
                     placeholder="100"
                     className="bg-muted border-border mt-1 text-foreground"
+                    value={newBlockCapacity}
+                    onChange={(e) => setNewBlockCapacity(e.target.value)}
                   />
                 </div>
                 
@@ -202,6 +234,8 @@ export default function BlockManagement() {
                   <Input
                     placeholder="e.g., East Campus"
                     className="bg-muted border-border mt-1 text-foreground"
+                    value={newBlockArea}
+                    onChange={(e) => setNewBlockArea(e.target.value)}
                   />
                 </div>
                 
@@ -325,10 +359,12 @@ export default function BlockManagement() {
                   <Button
                     size="sm"
                     variant="outline"
-                    className="flex-1 gap-2 border-border text-foreground hover:bg-muted"
+                    className="flex-1 gap-2 border-red-200 text-red-600 hover:bg-red-50"
+                    onClick={() => handleDeleteBlock(block.id)}
+                    disabled={isDeleting === block.id}
                   >
-                    <Archive className="w-4 h-4" />
-                    Archive
+                    <Trash2 className="w-4 h-4" />
+                    {isDeleting === block.id ? 'Deleting...' : 'Delete'}
                   </Button>
                 </div>
               </CardContent>
