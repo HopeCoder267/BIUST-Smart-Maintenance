@@ -311,19 +311,26 @@ export interface Project {
   // Budget information
   plannedBudget: number;
   actualCost: number;
+  budget: number;
+  spent: number;
   
   // Timeline
   startDate: Date;
   endDate: Date;
   completionPercentage: number;
+  progress: number;
   
   status: 'planning' | 'in_progress' | 'completed' | 'on_hold';
+  priority: TicketPriority;
   
   // Associated data
   milestones: ProjectMilestone[];
   relatedTickets: string[];       // Ticket IDs
+  tasks: ProjectTask[];
   
   coordinator: User;
+  assignedTo: User | null;
+  createdBy: User;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -347,20 +354,28 @@ export interface ProjectMilestone {
 export interface Supplier {
   id: string;
   name: string;
+  description: string;
+  status: SupplierStatus;
   contactPerson: string;
   email: string;
   phone: string;
   address: string;
   
-  category: string[];             // Types of supplies/services provided
-  rating?: number;                // Performance rating
+  category: string;               // Types of supplies/services provided
+  rating: number;                 // Performance rating
   
-  contractNumber?: string;
-  contractExpiry?: Date;
+  registrationDate: Date;
+  totalContracts: number;
+  activeContracts: number;
+  totalValue: number;
+  performanceScore: number;
   
-  isApproved: boolean;
+  createdBy: User;
   createdAt: Date;
   updatedAt: Date;
+  
+  contracts: Contract[];
+  documents: SupplierDocument[];
 }
 
 // ============================================================================
@@ -406,6 +421,23 @@ export interface Room {
   
   createdAt: Date;
   updatedAt: Date;
+}
+
+/**
+ * Resident information for room assignments
+ */
+export interface Resident {
+  id: string;
+  name: string;
+  student_id: string;
+  omang?: string;
+  level?: string;
+  room_id: string;
+  digital_key: string;
+  room_number?: string;
+  block_name?: string;
+  created_at: string;
+  updated_at: string;
 }
 
 /**
@@ -634,11 +666,115 @@ export interface FileAttachment {
 }
 
 // ============================================================================
+// PROJECT MANAGEMENT
+// ============================================================================
+
+/**
+ * Project management types
+ */
+export type ProjectStatus = 'planning' | 'in_progress' | 'completed' | 'cancelled';
+
+export interface ProjectTask {
+  id: string;
+  name: string;
+  completed: boolean;
+  assignedTo: User;
+}
+
+// ============================================================================
+// ASSET MANAGEMENT
+// ============================================================================
+
+/**
+ * Asset management types
+ */
+export type AssetStatus = 'operational' | 'maintenance_required' | 'out_of_service' | 'retired';
+
+export type AssetCategory = 'electrical' | 'hvac' | 'plumbing' | 'mechanical' | 'furniture' | 'it';
+
+export interface MaintenanceRecord {
+  date: Date;
+  type: 'routine' | 'repair' | 'emergency';
+  description: string;
+  cost: number;
+  performedBy: User;
+}
+
+export interface AssetDocument {
+  id: string;
+  name: string;
+  type: 'manual' | 'warranty' | 'invoice' | 'photo';
+  url: string;
+  uploadedAt: Date;
+  uploadedBy: User;
+}
+
+export interface AssetSpecifications {
+  model?: string;
+  manufacturer?: string;
+  serialNumber?: string;
+  [key: string]: any; // Allow for additional specification fields
+}
+
+export interface Asset {
+  id: string;
+  assetNumber: string;
+  name: string;
+  description: string;
+  category: AssetCategory;
+  status: AssetStatus;
+  location: string;
+  purchaseDate: Date;
+  purchaseCost: number;
+  currentValue: number;
+  warrantyExpiry: Date;
+  lastMaintenanceDate: Date;
+  nextMaintenanceDate: Date;
+  assignedTo: User | null;
+  createdBy: User;
+  createdAt: Date;
+  updatedAt: Date;
+  specifications: AssetSpecifications;
+  maintenanceHistory: MaintenanceRecord[];
+  documents: AssetDocument[];
+}
+
+// ============================================================================
+// SUPPLIER MANAGEMENT
+// ============================================================================
+
+/**
+ * Supplier management types
+ */
+export type SupplierStatus = 'active' | 'inactive' | 'suspended' | 'under_review';
+
+export interface Contract {
+  id: string;
+  contractNumber: string;
+  title: string;
+  startDate: Date;
+  endDate: Date;
+  value: number;
+  status: 'active' | 'expired' | 'pending' | 'terminated';
+  description: string;
+}
+
+export interface SupplierDocument {
+  id: string;
+  name: string;
+  type: 'certificate' | 'license' | 'insurance' | 'contract' | 'other';
+  url: string;
+  uploadedAt: Date;
+  uploadedBy: User;
+}
+
+
+// ============================================================================
 // SYSTEM SETTINGS
 // ============================================================================
 
 /**
- * System-wide settings
+ * System settings and configuration
  */
 export interface SystemSettings {
   maintenanceMode: boolean;

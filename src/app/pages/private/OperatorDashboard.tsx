@@ -6,7 +6,7 @@
  * 
  *  FEATURES: Dispatch, Ticket Management, Assignment, Operational Analytics
  */
-
+//check
 import { useState, useEffect, useMemo } from 'react';
 import { useAuthStore } from '../../store/authStore';
 import { useDataStore } from '../../store/dataStore';
@@ -25,7 +25,7 @@ import API from '../../services/api';
 import { format } from 'date-fns';
 
 export default function OperatorDashboard() {
-  const { tickets, fetchTickets, assignTechnician, updatePriority, dashboardAnalytics: stats } = useDataStore();
+  const { tickets, users, fetchTickets, fetchUsers, assignTechnician, updatePriority, dashboardAnalytics: stats, fetchAnalytics } = useDataStore();
   const [query, setQuery] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState({ priority: 'all', status: 'all' });
@@ -39,8 +39,9 @@ export default function OperatorDashboard() {
 
   useEffect(() => { 
     fetchTickets();
+    fetchAnalytics();
     API.get('/users?role=technician').then(res => setTechnicians(res.data));
-  }, [fetchTickets]);
+  }, [fetchTickets, fetchAnalytics]);
   
   const filteredTickets = useMemo(() => tickets.filter(t => {
     const matchSearch = !query || [t.title, t.ticketNumber, t.block].some(f => f && f.toLowerCase().includes(query.toLowerCase()));
@@ -109,16 +110,7 @@ export default function OperatorDashboard() {
     setSelectedTicket(null);
   };
   
-  /**
-   * Mock technicians for assignment
-   */
-  const mockTechnicians = [
-    { id: 'tech-1', name: 'Kagiso', specialty: 'Plumbing' },
-    { id: 'tech-2', name: 'Thabo', specialty: 'Electrical' },
-    { id: 'tech-3', name: 'Lesedi', specialty: 'HVAC' },
-    { id: 'tech-4', name: 'Mpho', specialty: 'Carpentry' },
-  ];
-  
+    
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -424,7 +416,7 @@ export default function OperatorDashboard() {
             <div>
               <Label>Available Technicians</Label>
               <div className="mt-2 space-y-2">
-                {Array.isArray(mockTechnicians) && mockTechnicians.map((tech) => (
+                {users.filter(u => u.role === 'technician').map((tech) => (
                   <Button
                     key={tech.id}
                     variant="outline"
@@ -436,7 +428,7 @@ export default function OperatorDashboard() {
                     </div>
                     <div className="text-left">
                       <p className="font-medium">{tech.name}</p>
-                      <p className="text-xs text-slate-400">{tech.specialty}</p>
+                      <p className="text-sm text-slate-400">{tech.role}</p>
                     </div>
                   </Button>
                 ))}

@@ -31,15 +31,15 @@ import { useEffect } from 'react';
 export default function PublicLogin() {
   const navigate = useNavigate();
   const { loginPublic } = useAuthStore();
-  const { blocks, fetchBlocks, fetchRooms } = useDataStore();
+  const { blocks, fetchPublicBlocks, fetchPublicRooms } = useDataStore();
 
   const [rooms, setRooms] = useState<string[]>([]);
   const [isRoomsLoading, setIsRoomsLoading] = useState(false);
 
   useEffect(() => {
     console.log('Fetching blocks for resident login...');
-    fetchBlocks();
-  }, [fetchBlocks]);
+    fetchPublicBlocks();
+  }, [fetchPublicBlocks]);
   
   // Form state
   const [step, setStep] = useState(1);
@@ -57,7 +57,13 @@ export default function PublicLogin() {
     setStep(2);
     setIsRoomsLoading(true);
     try {
-      const fetchedRooms = await fetchRooms(blockName);
+      // Find the selected block to get its ID
+      const selectedBlockData = blocks.find(b => b.name === blockName);
+      if (!selectedBlockData) {
+        throw new Error('Block not found');
+      }
+      
+      const fetchedRooms = await fetchPublicRooms(selectedBlockData.id);
       setRooms(fetchedRooms);
     } catch (error) {
       toast.error('Failed to load rooms');

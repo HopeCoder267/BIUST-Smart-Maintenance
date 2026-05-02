@@ -22,6 +22,11 @@ import FinanceDashboard from './pages/private/FinanceDashboard';
 import InventoryPage from './pages/private/InventoryPage';
 import BlockManagement from './pages/private/BlockManagement';
 import PreventiveMaintenancePage from './pages/private/PreventiveMaintenancePage';
+import JobCardsPage from './pages/private/JobCardsPage';
+import ProjectsPage from './pages/private/ProjectsPage';
+import AssetsPage from './pages/private/AssetsPage';
+import SuppliersPage from './pages/private/SuppliersPage';
+import AnalyticsPage from './pages/private/AnalyticsPage';
 import NotFound from './pages/NotFound';
 import ErrorBoundary from './components/ErrorBoundary';
 
@@ -110,6 +115,26 @@ export const router = createBrowserRouter([
       {
         path: 'preventive-maintenance',
         element: <PreventiveMaintenancePage />,
+      },
+      {
+        path: 'job-cards',
+        element: <JobCardsPage />,
+      },
+      {
+        path: 'projects',
+        element: <ProjectsPage />,
+      },
+      {
+        path: 'assets',
+        element: <AssetsPage />,
+      },
+      {
+        path: 'suppliers',
+        element: <SuppliersPage />,
+      },
+      {
+        path: 'analytics',
+        element: <AnalyticsPage />,
       },
     ],
   },
