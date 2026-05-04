@@ -383,24 +383,17 @@ export interface Supplier {
 // ============================================================================
 
 /**
- * Residence block structure
+ * Residence block structure - matches database schema
  */
 export interface Block {
   id: string;
   name: string;
-  description?: string;
-  capacity: number;               // Total number of rooms
-  occupiedRooms: number;
-  
-  // Geographic/organizational data
-  area?: string;                  // Campus area (e.g., "East Campus", "West Campus")
-  buildingType?: string;          // e.g., "male", "female", "staff"
-  
-  isActive: boolean;              // Archived blocks are hidden but kept in history
-  rooms: Room[];
-  
-  createdAt: Date;
-  updatedAt: Date;
+  total_rooms: number;
+  capacity: number;
+  total_residents: number;
+  status: string;                  // 'active', 'inactive', 'maintenance'
+  created_at: string;
+  updated_at: string;
 }
 
 /**

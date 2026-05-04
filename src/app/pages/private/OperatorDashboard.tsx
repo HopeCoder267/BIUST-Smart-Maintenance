@@ -21,11 +21,11 @@ import { Label } from '../../components/ui/label';
 import { Search, UserPlus, AlertTriangle, TrendingUp, Clock, CheckCircle2, Settings } from 'lucide-react';
 import { TicketPriority } from '../../types';
 import ProgressTimeline from '../../components/ProgressTimeline';
-import API from '../../services/api';
+import API from '../../services/mockData';
 import { format } from 'date-fns';
 
 export default function OperatorDashboard() {
-  const { tickets, users, fetchTickets, fetchUsers, assignTechnician, updatePriority, dashboardAnalytics: stats, fetchAnalytics } = useDataStore();
+  const { tickets, users, fetchTickets, fetchUsers, assignTechnician, dashboardAnalytics: stats, fetchAnalytics } = useDataStore();
   const [query, setQuery] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState({ priority: 'all', status: 'all' });

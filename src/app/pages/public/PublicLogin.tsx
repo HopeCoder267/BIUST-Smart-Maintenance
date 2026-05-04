@@ -274,6 +274,7 @@ export default function PublicLogin() {
                 <Input
                   id="digitalKey"
                   type="password"
+                  autoComplete="off"
                   placeholder="Enter your digital key"
                   value={digitalKey}
                   onChange={(e) => setDigitalKey(e.target.value)}

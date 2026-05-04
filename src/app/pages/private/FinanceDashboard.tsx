@@ -60,7 +60,9 @@ export default function FinanceDashboard() {
             <div className="space-y-2 text-center">
               <p className="text-sm text-slate-500 font-medium italic">Enter coordinator authorization PIN to proceed</p>
               <Input
+                id="password"
                 type="password"
+                autoComplete="current-password"
                 value={pin}
                 onChange={(e) => setPin(e.target.value)}
                 placeholder="****"

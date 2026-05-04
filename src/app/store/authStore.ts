@@ -10,7 +10,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { User, UserRole, PublicAuthData, StudentImportData } from '../types';
-import API from '../services/api';
+import API from '../services/mockData';
 
 interface AuthState {
   user: User | null;

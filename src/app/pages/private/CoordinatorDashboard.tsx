@@ -13,7 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/ca
 import { Button } from '../../components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { FileText, TrendingUp, Users, DollarSign, Download, Building2, Calendar } from 'lucide-react';
+import { FileText, TrendingUp, Users, DollarSign, Download, Building2 } from 'lucide-react';
 import { useDataStore } from '../../store/dataStore';
 
 const COLORS = ['#FF8C00', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];

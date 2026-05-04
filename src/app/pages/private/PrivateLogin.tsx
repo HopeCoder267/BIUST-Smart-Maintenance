@@ -1,11 +1,11 @@
 /**
  * BIUST Smart Maintenance System - Private Login Page
  *
- * JWT-based authentication for operations staff.
+ * Mock JWT-based authentication for operations staff.
  * Supports roles: Operator, Technician, Campus Assistant, Coordinator.
  *
  * This component handles login for staff users:
- * - Calls backend /login route with email + password
+ * - Calls mock API /login route with email + password
  * - Saves JWT token in localStorage
  * - Decodes token payload to extract role and user_id
  * - Updates auth store with user info
@@ -22,7 +22,7 @@ import { Card, CardContent, CardDescription, CardHeader } from '../../components
 import { toast } from 'sonner';
 import Logo from '../../components/ui/Logo';
 import { Lock, Mail, ArrowRight } from 'lucide-react';
-import API from '../../services/api';
+import API from '../../services/mockData';
 
 export default function PrivateLogin() {
   const navigate = useNavigate();
@@ -36,7 +36,7 @@ export default function PrivateLogin() {
   /**
    * Handle form submission
    * - Prevent default form behavior
-   * - Call backend /login route
+   * - Call mock API /login route
    * - Save token in localStorage
    * - Decode token to get role + user_id
    * - Update auth store
@@ -47,7 +47,7 @@ export default function PrivateLogin() {
     setIsLoading(true);
 
     try {
-      // Call backend login route
+      // Call mock API login route
       const response = await API.post('/login', { email, password });
       const { token } = response.data;
 
@@ -151,6 +151,7 @@ export default function PrivateLogin() {
                     <Input
                         id="password"
                         type="password"
+                        autoComplete="current-password"
                         placeholder="Enter your password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}

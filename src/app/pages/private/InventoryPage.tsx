@@ -18,13 +18,14 @@ import { useDataStore } from '../../store/dataStore';
 
 export default function InventoryPage() {
   const { inventory, fetchInventory } = useDataStore();
-  const [query, setQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => { fetchInventory(); }, [fetchInventory]);
   
   const filtered = useMemo(() => inventory.filter(i => 
-    [i.name, i.category].some(f => f.toLowerCase().includes(query.toLowerCase()))
-  ), [inventory, query]);
+    [i.name, i.category].some(f => f.toLowerCase().includes(searchQuery.toLowerCase()))
+  ), [inventory, searchQuery]);
 
   const stats = useMemo(() => ({
     total: inventory.length,
@@ -60,7 +61,7 @@ export default function InventoryPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground mb-1">Total Items</p>
-                <p className="text-3xl font-bold text-foreground">{stats.totalItems}</p>
+                <p className="text-3xl font-bold text-foreground">{stats.total}</p>
               </div>
               <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
                 <Package className="w-6 h-6 text-primary" />
@@ -88,7 +89,7 @@ export default function InventoryPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground mb-1">Low Stock</p>
-                <p className="text-3xl font-bold text-foreground">{stats.lowStock}</p>
+                <p className="text-3xl font-bold text-foreground">{stats.low}</p>
               </div>
               <div className="w-12 h-12 bg-amber-500/10 rounded-lg flex items-center justify-center">
                 <AlertTriangle className="w-6 h-6 text-amber-500" />
@@ -102,7 +103,7 @@ export default function InventoryPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground mb-1">Out of Stock</p>
-                <p className="text-3xl font-bold text-foreground">{stats.outOfStock}</p>
+                <p className="text-3xl font-bold text-foreground">{stats.out}</p>
               </div>
               <div className="w-12 h-12 bg-red-500/10 rounded-lg flex items-center justify-center">
                 <TrendingDown className="w-6 h-6 text-red-500" />
@@ -152,14 +153,14 @@ export default function InventoryPage() {
                       Loading inventory...
                     </TableCell>
                   </TableRow>
-                ) : !Array.isArray(filteredInventory) || filteredInventory.length === 0 ? (
+                ) : !Array.isArray(filtered) || filtered.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                       No items found
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredInventory.map((item) => (
+                  filtered.map((item: any) => (
                     <TableRow key={item.id} className="hover:bg-muted/30 border-border">
                       <TableCell className="text-foreground font-medium">
                         {item.name}
@@ -179,13 +180,13 @@ export default function InventoryPage() {
                         {item.minThreshold} {item.unit}
                       </TableCell>
                       <TableCell className="text-muted-foreground">
-                        P {item.unitPrice !== undefined ? item.unitPrice.toLocaleString() : '0'}
+                        P {item.unitPrice || item.unit_price || 0}
                       </TableCell>
                       <TableCell className="text-muted-foreground">
-                        P {item.totalValue !== undefined ? item.totalValue.toLocaleString() : '0'}
+                        P {item.totalValue || item.total_value || 0}
                       </TableCell>
                       <TableCell>
-                        <Badge className={getStatusBadge(item.status)}>
+                        <Badge className={badgeStyles[item.status]}>
                           {item.status.replace('_', ' ')}
                         </Badge>
                       </TableCell>
@@ -202,7 +203,7 @@ export default function InventoryPage() {
       </Card>
       
       {/* Low Stock Alerts */}
-      {stats.lowStock > 0 && (
+      {stats.low > 0 && (
         <Card className="bg-orange-50 border-orange-200">
           <CardHeader>
             <CardTitle className="text-orange-900 flex items-center gap-2">
