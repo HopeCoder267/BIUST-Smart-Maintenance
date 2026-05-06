@@ -1267,11 +1267,30 @@ export const useDataStore = create<DataState>()(
         }
 
         const notifications = get().notifications;
-        return notifications.filter(n => 
-          n.targetUserId === user.id || 
-          n.targetRole === user.role ||
-          n.targetAll === true
-        );
+        return notifications.filter((n: any) => {
+          // Legacy fields support
+          const legacyTargetUser = n.targetUserId === user.id;
+          const legacyTargetRole = n.targetRole === user.role;
+          const legacyTargetAll = n.targetAll === true;
+
+          // Current notification model support
+          const targetUsers = Array.isArray(n.targetUsers) ? n.targetUsers : [];
+          const targetRoles = Array.isArray(n.targetRoles) ? n.targetRoles : [];
+          const targetBlocks = Array.isArray(n.targetBlocks) ? n.targetBlocks : [];
+          const targetRooms = Array.isArray(n.targetRooms) ? n.targetRooms : [];
+
+          const targetsUser = targetUsers.includes(user.id) || legacyTargetUser;
+          const targetsRole = targetRoles.length > 0 ? targetRoles.includes(user.role) : legacyTargetRole;
+          const isCampusWide = targetBlocks.length === 0 && targetRooms.length === 0;
+          const targetsBlock = targetBlocks.includes(user.block);
+          const targetsRoom = targetRooms.includes(user.room);
+
+          if (user.role === 'student') {
+            return targetsUser || legacyTargetAll || (targetsRole && isCampusWide) || targetsRoom || targetsBlock || isCampusWide;
+          }
+
+          return targetsUser || targetsRole || targetsBlock || targetsRoom || legacyTargetAll || isCampusWide;
+        });
       },
 
       getTicketsByUser: (userId: string, role: string) => {
@@ -1281,11 +1300,8 @@ export const useDataStore = create<DataState>()(
 
         const tickets = get().tickets;
         if (role === 'student') {
-          // Residents only see tickets from their room
-          return tickets.filter(t => 
-            t.submittedBy?.id === userId || 
-            (t.block && t.room && t.submittedBy?.block === t.block && t.submittedBy?.room === t.room)
-          );
+          // Residents only see tickets they personally submitted
+          return tickets.filter(t => t.submittedBy?.id === userId);
         } else {
           // Staff can see all tickets
           return tickets;
