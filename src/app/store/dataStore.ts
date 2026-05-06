@@ -357,20 +357,41 @@ export const useDataStore = create<DataState>()(
       fetchResidents: async (blockId?: string) => {
         set({ isLoading: true, error: null });
         try {
-          let residentsQuery;
+          let residents: Resident[] = [];
+
           if (blockId) {
-            // Fetch residents for specific block
-            residentsQuery = query(collection(db, 'residents'), where('blockId', '==', blockId));
+            const byBlockIdSnapshot = await getDocs(query(collection(db, 'residents'), where('blockId', '==', blockId)));
+
+            const blockName = get().blocks.find(b => b.id === blockId)?.name;
+            const byBlockNameSnapshot = blockName
+              ? await getDocs(query(collection(db, 'residents'), where('blockName', '==', blockName)))
+              : null;
+
+            const residentsMap = new Map<string, Resident>();
+
+            byBlockIdSnapshot.docs.forEach((residentDoc) => {
+              residentsMap.set(residentDoc.id, {
+                id: residentDoc.id,
+                ...residentDoc.data()
+              } as Resident);
+            });
+
+            byBlockNameSnapshot?.docs.forEach((residentDoc) => {
+              residentsMap.set(residentDoc.id, {
+                id: residentDoc.id,
+                ...residentDoc.data()
+              } as Resident);
+            });
+
+            residents = Array.from(residentsMap.values());
           } else {
-            // Fetch all residents
-            residentsQuery = collection(db, 'residents');
+            const querySnapshot = await getDocs(collection(db, 'residents'));
+            residents = querySnapshot.docs.map(doc => ({
+              id: doc.id,
+              ...doc.data()
+            })) as Resident[];
           }
-          
-          const querySnapshot = await getDocs(residentsQuery);
-          const residents = querySnapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-          })) as Resident[];
+
           set({ residents, isLoading: false });
         } catch (error: any) {
           set({ error: error.message, isLoading: false });
@@ -482,13 +503,20 @@ export const useDataStore = create<DataState>()(
           }
           
           // Always fetch tickets - auth checks should be done in components
-          const unsubscribe = onSnapshot(collection(db, 'tickets'), (snapshot) => {
-            const tickets = snapshot.docs.map(doc => ({
-              id: doc.id,
-              ...doc.data()
-            })) as Ticket[];
-            set({ tickets, isLoading: false });
-          });
+          const unsubscribe = onSnapshot(
+            collection(db, 'tickets'),
+            (snapshot) => {
+              const tickets = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+              })) as Ticket[];
+              set({ tickets, isLoading: false });
+            },
+            (error) => {
+              console.error('Tickets listener error:', error);
+              set({ error: error.message, isLoading: false });
+            }
+          );
           
           set(state => ({ listeners: [...state.listeners, unsubscribe] }));
         } catch (error: any) {
@@ -674,13 +702,20 @@ export const useDataStore = create<DataState>()(
         // Users can be fetched by any authenticated user - role checks should be in components
         set({ isLoading: true, error: null });
         try {
-          const unsubscribe = onSnapshot(collection(db, 'users'), (snapshot) => {
-            const users = snapshot.docs.map(doc => ({
-              id: doc.id,
-              ...doc.data()
-            }));
-            set({ users, isLoading: false });
-          });
+          const unsubscribe = onSnapshot(
+            collection(db, 'users'),
+            (snapshot) => {
+              const users = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+              }));
+              set({ users, isLoading: false });
+            },
+            (error) => {
+              console.error('Users listener error:', error);
+              set({ error: error.message, isLoading: false });
+            }
+          );
           
           set(state => ({ listeners: [...state.listeners, unsubscribe] }));
         } catch (error: any) {
@@ -693,13 +728,20 @@ export const useDataStore = create<DataState>()(
       fetchNotifications: async () => {
         set({ isLoading: true, error: null });
         try {
-          const unsubscribe = onSnapshot(collection(db, 'notifications'), (snapshot) => {
-            const notifications = snapshot.docs.map(doc => ({
-              id: doc.id,
-              ...doc.data()
-            }));
-            set({ notifications, isLoading: false });
-          });
+          const unsubscribe = onSnapshot(
+            collection(db, 'notifications'),
+            (snapshot) => {
+              const notifications = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+              }));
+              set({ notifications, isLoading: false });
+            },
+            (error) => {
+              console.error('Notifications listener error:', error);
+              set({ error: error.message, isLoading: false });
+            }
+          );
           
           set(state => ({ listeners: [...state.listeners, unsubscribe] }));
         } catch (error: any) {
@@ -1220,6 +1262,10 @@ export const useDataStore = create<DataState>()(
 
       // Helper functions
       getFilteredNotifications: (user: any) => {
+        if (!user?.id && !user?.role) {
+          return [];
+        }
+
         const notifications = get().notifications;
         return notifications.filter(n => 
           n.targetUserId === user.id || 
@@ -1229,6 +1275,10 @@ export const useDataStore = create<DataState>()(
       },
 
       getTicketsByUser: (userId: string, role: string) => {
+        if (!userId || !role) {
+          return [];
+        }
+
         const tickets = get().tickets;
         if (role === 'student') {
           // Residents only see tickets from their room

@@ -403,8 +403,43 @@ Bob Smith,ST002,987654321,Year 3 Engineering,Block A,102,BOB102`;
       // Import students one by one using dataStore
       let successCount = 0;
       for (const student of students) {
-        const success = await addResident(student);
+        const blockName = student.block || student.blockName || student.block_name || '';
+        const block = blocks.find(b => b.name === blockName);
+
+        if (!block) {
+          continue;
+        }
+
+        const roomNumber = student.room || student.roomNumber || student.room_id || student.roomID || '';
+        const residentData = {
+          name: student.name || '',
+          studentId: student.studentId || student.student_id || '',
+          omang: student.omang || '',
+          level: student.level || '',
+          blockName,
+          blockId: block.id,
+          roomNumber,
+          digitalKey: student.digitalKey || student.digital_key || '',
+          roomId: roomNumber,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+
+        const success = await addResident(residentData);
         if (success) successCount++;
+
+        await addRoom({
+          blockName,
+          blockId: block.id,
+          roomID: roomNumber,
+          roomId: roomNumber,
+          digitalKey: residentData.digitalKey,
+          residentName: residentData.name,
+          residentId: '',
+          occupied: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        });
       }
       
       console.log(`Import result: ${successCount}/${students.length} students imported`);

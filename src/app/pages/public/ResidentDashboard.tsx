@@ -44,7 +44,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/ta
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../../components/ui/dialog';
 import { Ticket, TicketCategory } from '../../types';
 import ProgressTimeline from '../../components/ProgressTimeline';
-import { format } from 'date-fns';
+import { format, isValid } from 'date-fns';
 
 /**
  * ResidentDashboard Component
@@ -76,6 +76,26 @@ export default function ResidentDashboard() {
   const [selectedTicket, setSelectedTicket] = useState<any>(null);
   const [isEditingAvailability, setIsEditingAvailability] = useState(false);
   const [tempAvailability, setTempAvailability] = useState('available');
+
+  const formatDateSafe = (value: any, pattern: string) => {
+    if (!value) return 'No date';
+
+    let dateValue: Date | null = null;
+
+    if (value instanceof Date) {
+      dateValue = value;
+    } else if (typeof value?.toDate === 'function') {
+      dateValue = value.toDate();
+    } else if (typeof value === 'string' || typeof value === 'number') {
+      dateValue = new Date(value);
+    }
+
+    if (!dateValue || !isValid(dateValue)) {
+      return 'No date';
+    }
+
+    return format(dateValue, pattern);
+  };
   
   // Form state
   const [newTicket, setNewTicket] = useState({
@@ -106,9 +126,9 @@ export default function ResidentDashboard() {
   /**
    * Get user's tickets from data store
    */
-  const userTickets = getTicketsByUser(user.id, user.role);
+  const userTickets = user ? getTicketsByUser(user.id, user.role) : [];
   
-  const userNotifications = getFilteredNotifications(user);
+  const userNotifications = user ? getFilteredNotifications(user) : [];
   
   /**
    * Check for duplicate tickets in a smart way
@@ -152,6 +172,12 @@ export default function ResidentDashboard() {
    */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!user?.id) {
+      toast.error('Your session has expired. Please sign in again.');
+      navigate('/');
+      return;
+    }
     
     if (!newTicket.title.trim() || !newTicket.description.trim()) {
       toast.error('Please fill in all required fields');
@@ -193,7 +219,10 @@ export default function ResidentDashboard() {
         }))
       };
       
-      await addTicket(ticketData);
+      const wasCreated = await addTicket(ticketData);
+      if (!wasCreated) {
+        return;
+      }
       
       // Reset form
       setNewTicket({
@@ -265,9 +294,9 @@ export default function ResidentDashboard() {
     <div className="space-y-6">
       {/* Welcome Header */}
       <div className="bg-primary rounded-xl p-6 text-white shadow-lg shadow-primary/20">
-        <h1 className="text-2xl font-bold mb-2">Welcome back, {user.name}!</h1>
+        <h1 className="text-2xl font-bold mb-2">Welcome back, {user?.name || 'Resident'}!</h1>
         <p className="text-orange-50 font-medium">
-          {user.block} • Room {user.room}
+          {user?.block || '-'} • Room {user?.room || '-'}
         </p>
       </div>
       
@@ -515,7 +544,7 @@ export default function ResidentDashboard() {
                     <div className="flex items-center gap-6 text-sm text-muted-foreground pt-4 border-t border-border">
                       <div className="flex items-center gap-2">
                         <Calendar className="w-4 h-4 text-primary" />
-                        {ticket.createdAt ? format(new Date(ticket.createdAt), 'MMM d, yyyy') : 'No date'}
+                        {formatDateSafe(ticket.createdAt, 'MMM d, yyyy')}
                       </div>
                       {ticket.assignedTo && (
                         <div className="flex items-center gap-2">
@@ -570,7 +599,7 @@ export default function ResidentDashboard() {
                             {notification.title}
                           </h4>
                           <span className="text-xs text-muted-foreground">
-                            {notification.createdAt ? format(new Date(notification.createdAt), 'MMM d, HH:mm') : 'No date'}
+                            {formatDateSafe(notification.createdAt, 'MMM d, HH:mm')}
                           </span>
                         </div>
                         <p className="text-sm text-muted-foreground">{notification.message}</p>
@@ -602,7 +631,7 @@ export default function ResidentDashboard() {
                     </DialogTitle>
                     <DialogDescription className="text-muted-foreground">
                       Ticket #{selectedTicket.ticketNumber} • Submitted on{' '}
-                      {selectedTicket.createdAt ? format(new Date(selectedTicket.createdAt), 'MMMM d, yyyy') : 'No date'}
+                      {formatDateSafe(selectedTicket.createdAt, 'MMMM d, yyyy')}
                     </DialogDescription>
                   </div>
                   <div className="flex gap-2">
