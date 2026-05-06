@@ -41,18 +41,22 @@ export default function OperatorDashboard() {
     fetchAnalytics();
   }, [fetchTickets, fetchAnalytics]);
 
-  // Filter technicians from users data
+  const filteredTickets = useMemo(() => {
+    if (!Array.isArray(tickets)) return [];
+    return tickets.filter(t => {
+      if (!t) return false;
+      const matchSearch = !query || [t.title, t.ticketNumber, t.block].some(f => f && f.toLowerCase().includes(query.toLowerCase()));
+      const matchPriority = filters.priority === 'all' || t.priority === filters.priority;
+      const matchStatus = filters.status === 'all' || t.status === filters.status;
+      return matchSearch && matchPriority && matchStatus;
+    });
+  }, [tickets, query, filters]);
+
+  // Filter technicians from users data with defensive programming
   useEffect(() => {
-    const technicianUsers = users.filter(user => user.role === 'technician');
+    const technicianUsers = users.filter(user => user && user.role === 'technician');
     setTechnicians(technicianUsers);
   }, [users]);
-  
-  const filteredTickets = useMemo(() => tickets.filter(t => {
-    const matchSearch = !query || [t.title, t.ticketNumber, t.block].some(f => f && f.toLowerCase().includes(query.toLowerCase()));
-    const matchPriority = filters.priority === 'all' || t.priority === filters.priority;
-    const matchStatus = filters.status === 'all' || t.status === filters.status;
-    return matchSearch && matchPriority && matchStatus;
-  }), [tickets, query, filters]);
 
   const priorityStyles: Record<string, string> = {
     critical: 'bg-red-500', high: 'bg-orange-500', medium: 'bg-yellow-500', low: 'bg-blue-500'
@@ -284,20 +288,20 @@ export default function OperatorDashboard() {
                       onClick={() => setSelectedTicket(ticket)}
                     >
                       <TableCell className="font-mono text-sm text-slate-300">
-                        {ticket.ticketNumber}
+                        {ticket.ticketNumber || 'N/A'}
                       </TableCell>
                       <TableCell className="text-white">
                         <div>
-                          <p className="font-medium">{ticket.title}</p>
-                          <p className="text-xs text-slate-400 capitalize">{ticket.category}</p>
+                          <p className="font-medium">{ticket.title || 'Untitled'}</p>
+                          <p className="text-xs text-slate-400 capitalize">{ticket.category || 'uncategorized'}</p>
                         </div>
                       </TableCell>
                       <TableCell className="text-slate-300">
                         <div>
-                          <p className="font-medium">{ticket.block} • {ticket.room}</p>
+                          <p className="font-medium">{ticket.block || 'Unknown'} • {ticket.room || 'N/A'}</p>
                           {ticket.submittedBy && (
                             <p className="text-xs text-slate-400">
-                              {ticket.submittedBy.name} ({ticket.submittedBy.studentId})
+                              {ticket.submittedBy.name || 'Unknown'} ({ticket.submittedBy.studentId || 'N/A'})
                             </p>
                           )}
                         </div>
@@ -313,7 +317,7 @@ export default function OperatorDashboard() {
                       </TableCell>
                       <TableCell>
                         <Badge className={getStatusBadge(ticket.status)}>
-                          {ticket.status.replace('_', ' ')}
+                          {ticket.status?.replace('_', ' ') || 'Unknown'}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-slate-300">
@@ -321,10 +325,10 @@ export default function OperatorDashboard() {
                           <div className="flex items-center gap-2">
                             <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center">
                               <span className="text-xs text-white">
-                                {ticket.assignedTo.name.charAt(0)}
+                                {ticket.assignedTo.name?.charAt(0) || ticket.assignedTo.displayName?.charAt(0) || '?'}
                               </span>
                             </div>
-                            <span className="text-sm">{ticket.assignedTo.name}</span>
+                            <span className="text-sm">{ticket.assignedTo.name || ticket.assignedTo.displayName || 'Unknown'}</span>
                           </div>
                         ) : (
                           <span className="text-slate-500 text-sm">Unassigned</span>
@@ -380,7 +384,7 @@ export default function OperatorDashboard() {
                   {selectedTicket.title}
                 </DialogTitle>
                 <DialogDescription className="text-slate-400">
-                  Ticket #{selectedTicket.ticketNumber} • {selectedTicket.block} Room {selectedTicket.room}
+                  Ticket #{selectedTicket.ticketNumber || 'N/A'} • {selectedTicket.block || 'Unknown'} Room {selectedTicket.room || 'N/A'}
                 </DialogDescription>
               </DialogHeader>
               
@@ -388,7 +392,7 @@ export default function OperatorDashboard() {
                 {/* Details */}
                 <div>
                   <h4 className="font-semibold mb-2">Description</h4>
-                  <p className="text-slate-300">{selectedTicket.description}</p>
+                  <p className="text-slate-300">{selectedTicket.description || 'No description provided'}</p>
                 </div>
                 
                 {/* Progress Timeline */}
@@ -440,7 +444,7 @@ export default function OperatorDashboard() {
             <div>
               <Label>Available Technicians</Label>
               <div className="mt-2 space-y-2">
-                {users.filter(u => u.role === 'technician').map((tech) => (
+                {users.filter(u => u && u.role === 'technician').map((tech) => (
                   <Button
                     key={tech.id}
                     variant="outline"
@@ -448,11 +452,11 @@ export default function OperatorDashboard() {
                     onClick={() => handleAssignTechnician(tech.id)}
                   >
                     <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
-                      <span className="text-white font-semibold">{tech.name.charAt(0)}</span>
+                      <span className="text-white font-semibold">{tech.name?.charAt(0) || tech.displayName?.charAt(0) || '?'}</span>
                     </div>
                     <div className="text-left">
-                      <p className="font-medium">{tech.name}</p>
-                      <p className="text-sm text-slate-400">{tech.role}</p>
+                      <p className="font-medium">{tech.name || tech.displayName || 'Unknown Technician'}</p>
+                      <p className="text-sm text-slate-400">{tech.role || 'technician'}</p>
                     </div>
                   </Button>
                 ))}

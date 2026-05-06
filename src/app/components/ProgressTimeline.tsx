@@ -32,9 +32,12 @@ interface TimelineProps {
 }
 
 export default function ProgressTimeline({ currentStage, progressHistory, variant = 'horizontal', showNotes = true }: TimelineProps) {
-  const currentIndex = STAGES.findIndex(s => s.stage === currentStage);
-  const getHistory = (stage: ProgressStage) => progressHistory.find(h => h.stage === stage);
-  const getStatus = (idx: number) => idx < currentIndex ? 'completed' : idx === currentIndex ? 'current' : 'pending';
+  const currentIndex = currentStage ? STAGES.findIndex(s => s.stage === currentStage) : -1;
+  const getHistory = (stage: ProgressStage) => progressHistory?.find(h => h.stage === stage) || null;
+  const getStatus = (idx: number) => {
+    if (currentIndex === -1) return 'pending';
+    return idx < currentIndex ? 'completed' : idx === currentIndex ? 'current' : 'pending';
+  };
 
   const renderIcon = (status: string) => {
     if (status === 'completed') return <Check className="w-5 h-5 text-white" />;
@@ -47,7 +50,7 @@ export default function ProgressTimeline({ currentStage, progressHistory, varian
       <div className="w-full">
         <div className="flex items-center justify-between relative mb-8 px-4">
           <div className="absolute top-5 left-0 right-0 h-1 bg-slate-200 rounded-full" />
-          <div className="absolute top-5 left-0 h-1 bg-primary transition-all duration-700 rounded-full" style={{ width: `${(currentIndex / 8) * 100}%` }} />
+          <div className="absolute top-5 left-0 h-1 bg-primary transition-all duration-700 rounded-full" style={{ width: currentIndex >= 0 ? `${(currentIndex / 8) * 100}%` : '0%' }} />
           
           {STAGES.map((s, i) => {
             const status = getStatus(i);
@@ -72,8 +75,8 @@ export default function ProgressTimeline({ currentStage, progressHistory, varian
         <div className="p-4 bg-primary/5 rounded-xl border border-primary/10 flex gap-4">
           <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white shrink-0"><Clock className="w-5 h-5" /></div>
           <div>
-            <h4 className="font-bold text-slate-900 leading-tight">Current: {STAGES[currentIndex]?.label}</h4>
-            <p className="text-sm text-slate-600">{STAGES[currentIndex]?.desc}</p>
+            <h4 className="font-bold text-slate-900 leading-tight">Current: {currentIndex >= 0 ? STAGES[currentIndex]?.label : 'Unknown Stage'}</h4>
+            <p className="text-sm text-slate-600">{currentIndex >= 0 ? STAGES[currentIndex]?.desc : 'Stage information not available'}</p>
             {showNotes && getHistory(currentStage)?.notes && (
               <div className="mt-2 p-3 bg-white/80 rounded-lg border text-sm text-slate-700 italic">"{getHistory(currentStage)?.notes}"</div>
             )}
@@ -86,7 +89,7 @@ export default function ProgressTimeline({ currentStage, progressHistory, varian
   return (
     <div className="relative pl-10 space-y-6">
       <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-slate-200" />
-      <div className="absolute left-4 top-0 w-0.5 bg-primary transition-all duration-700" style={{ height: `${(currentIndex / 8) * 100}%` }} />
+      <div className="absolute left-4 top-0 w-0.5 bg-primary transition-all duration-700" style={{ height: currentIndex >= 0 ? `${(currentIndex / 8) * 100}%` : '0%' }} />
       {STAGES.map((s, i) => {
         const status = getStatus(i);
         const history = getHistory(s.stage);
