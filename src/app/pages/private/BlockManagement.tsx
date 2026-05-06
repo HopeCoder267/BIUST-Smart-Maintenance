@@ -363,14 +363,14 @@ export default function BlockManagement() {
   // WORKING PATTERN: CSV import (same approach)
   const downloadTemplate = () => {
     const csvContent = `name,student_id,omang,level,block,room,digitalKey
-Alice Johnson,ST001,123456789,Year 2 Computer Science,Block A,101,ALICE101
-Bob Smith,ST002,987654321,Year 3 Engineering,Block A,102,BOB102`;
+Katlego Jonny,ST001,123456789,Year 2 Computer Science,Block A,101,kate101
+Bobby Deeman,bd002,987654321,Year 3 Engineering,Block A,102,BOB102`;
 
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'resident_import_template.csv';
+    a.download = 'resident-import-template.csv';
     a.click();
     window.URL.revokeObjectURL(url);
     toast.success('CSV template downloaded');
@@ -497,7 +497,7 @@ Bob Smith,ST002,987654321,Year 3 Engineering,Block A,102,BOB102`;
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Block Management</h1>
-          <p className="text-muted-foreground">Centralized dataStore with consistent CRUD operations</p>
+          {/*<p className="text-muted-foreground">Centralized dataStore with consistent CRUD operations</p>*/}
         </div>
         
         <div className="flex gap-3">
@@ -510,18 +510,18 @@ Bob Smith,ST002,987654321,Year 3 Engineering,Block A,102,BOB102`;
             </DialogTrigger>
             <DialogContent className="bg-white border-border text-foreground max-w-2xl">
               <DialogHeader>
-                <DialogTitle className="text-xl">Bulk Student Import (CSV)</DialogTitle>
+                <DialogTitle className="text-xl">Bulk Resident Import (CSV)</DialogTitle>
                 <DialogDescription>
-                  Import multiple students at once using a CSV file
+                  {/*Import multiple Resident at once using a CSV file*/}
                 </DialogDescription>
               </DialogHeader>
               
               <div className="space-y-4">
                 <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-                  <h3 className="font-semibold text-blue-900 mb-3">📊 CSV Import</h3>
+                  <h3 className="font-semibold text-blue-900 mb-3">CSV Import</h3>
                   <div className="space-y-2 text-sm text-blue-800">
-                    <p>• Import students directly to database</p>
-                    <p>• Auto-creates blocks and rooms</p>
+                    {/*<p>• Import Residents directly to database</p>*/}
+                    {/*<p>• Auto-creates blocks and rooms</p>*/}
                   </div>
                 </div>
 
@@ -575,7 +575,7 @@ Bob Smith,ST002,987654321,Year 3 Engineering,Block A,102,BOB102`;
               <DialogHeader>
                 <DialogTitle>Add New Block</DialogTitle>
                 <DialogDescription>
-                  Create a new residential block for student accommodation
+                  {/*Create a new residential block*/}
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
@@ -696,7 +696,7 @@ Bob Smith,ST002,987654321,Year 3 Engineering,Block A,102,BOB102`;
                   <Input
                     value={newResident.name}
                     onChange={(e) => setNewResident({...newResident, name: e.target.value})}
-                    placeholder="John Doe"
+                    placeholder="Hope Kenosi"
                     className="bg-white border-blue-300"
                   />
                 </div>
@@ -804,16 +804,12 @@ Bob Smith,ST002,987654321,Year 3 Engineering,Block A,102,BOB102`;
               )}
             </div>
 
-            {/* Working Pattern Info */}
+            {/* Green box list */}
             <div className="p-4 bg-green-50 rounded-lg border border-green-200">
-              <h3 className="font-semibold text-green-900 mb-2">✅ DataStore Pattern Applied</h3>
+
               <div className="text-sm text-green-800 space-y-1">
-                <p>• <strong>Add Block:</strong> DataStore pattern ✅</p>
-                <p>• <strong>Delete Block:</strong> DataStore pattern ✅</p>
-                <p>• <strong>Add Resident:</strong> DataStore pattern ✅</p>
-                <p>• <strong>Delete Resident:</strong> DataStore pattern ✅</p>
-                <p>• <strong>Centralized Error Handling:</strong> DataStore ✅</p>
-                <p>• <strong>State Persistence:</strong> DataStore ✅</p>
+
+
               </div>
             </div>
           </div>
