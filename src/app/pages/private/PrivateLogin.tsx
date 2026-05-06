@@ -12,9 +12,9 @@
  * - Redirects user to the correct dashboard based on role
  */
 
-import { useState } from 'react';
-import { useNavigate } from 'react-router';
-import { useAuthStore } from '../../store/authStore';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { usePrivateAuthStore } from '../../store/privateAuthStore';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
@@ -22,11 +22,18 @@ import { Card, CardContent, CardDescription, CardHeader } from '../../components
 import { toast } from 'sonner';
 import Logo from '../../components/ui/Logo';
 import { Lock, Mail, ArrowRight } from 'lucide-react';
-import API from '../../services/mockData';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { auth } from '../../../firebase';
 
 export default function PrivateLogin() {
   const navigate = useNavigate();
-  const { loginPrivate } = useAuthStore();
+  const { loginPrivate, initializeAuth, user, isAuthenticated } = usePrivateAuthStore();
+
+  // Initialize Firebase Auth listener when component mounts
+  useEffect(() => {
+    console.log('PrivateLogin - Initializing Firebase Auth...');
+    initializeAuth();
+  }, [initializeAuth]);
 
   // Local state for form inputs
   const [email, setEmail] = useState('');
@@ -35,67 +42,87 @@ export default function PrivateLogin() {
 
   /**
    * Handle form submission
-   * - Prevent default form behavior
-   * - Call mock API /login route
-   * - Save token in localStorage
-   * - Decode token to get role + user_id
-   * - Update auth store
-   * - Navigate to correct dashboard
+   * - Use Firebase Authentication to sign in user
+   * - Fetch user details from Firestore for RBAC
+   * - Update auth store with user info
+   * - Navigate to correct dashboard based on role
    */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
-      // Call mock API login route
-      const response = await API.post('/login', { email, password });
-      const { token } = response.data;
+      // Sign in with Firebase Authentication
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const firebaseUser = userCredential.user;
 
-      if (!token) {
-        throw new Error('No token returned from server');
+      if (!firebaseUser) {
+        throw new Error('Firebase authentication failed');
       }
 
-      // Login successful: update auth store with token + email
-      loginPrivate(token, email);
-
-      // Save token in localStorage for persistence
-      localStorage.setItem('jwt_token', token);
-
       // Show success toast
-      toast.success('Login successful!', {
+      toast.success('Authentication successful!', {
         description: `Welcome back, ${email}`,
       });
 
-      // Decode token payload safely to determine role for navigation
-      const parts = token.split('.');
-      if (parts.length !== 3) {
-        throw new Error('Invalid token received from server');
-      }
+      // The privateAuthStore's loginPrivate method will be called automatically by the auth state listener
+      // since we already signed in with Firebase Auth
+      // Use a more reliable approach to wait for auth state to update
+      const checkAuthState = () => {
+        console.log('Auth state after login:', { user, isAuthenticated });
+        
+        if (user && user.role && isAuthenticated) {
+          const roleRoutes: Record<string, string> = {
+            operator: '/dashboard/operator',
+            technician: '/dashboard/technician',
+            assistant: '/dashboard/assistant',
+            coordinator: '/dashboard/coordinator',
+          };
 
-      const payload = JSON.parse(atob(parts[1]));
-      const role = payload.role;
-      const user_id = payload.user_id;
-
-      if (!role) {
-        throw new Error('No role found in token payload');
-      }
-
-      // Update auth store with role + user_id
-      loginPrivate(token, email, role, user_id);
-
-      // Navigate to appropriate dashboard
-      const roleRoutes: Record<string, string> = {
-        operator: '/dashboard/operator',
-        technician: '/dashboard/technician',
-        assistant: '/dashboard/assistant',
-        coordinator: '/dashboard/coordinator',
+          navigate(roleRoutes[user.role] || '/dashboard/operator');
+        } else {
+          console.error('User role not found or not authenticated');
+          toast.error('Login failed', {
+            description: 'User role not found in system. Please contact administrator.',
+          });
+        }
       };
 
-      navigate(roleRoutes[role] || '/dashboard/operator');
+      // Check immediately and then set up interval to poll for auth state
+      checkAuthState();
+      const authCheckInterval = setInterval(() => {
+        if (user && isAuthenticated) {
+          clearInterval(authCheckInterval);
+          checkAuthState();
+        }
+      }, 100);
+
+      // Fallback timeout to prevent infinite polling
+      setTimeout(() => {
+        clearInterval(authCheckInterval);
+        checkAuthState(); // Final attempt
+      }, 2000);
+
     } catch (error: any) {
       // Show error toast if login fails
+      let errorMessage = 'Please try again';
+      
+      if (error.code === 'auth/user-not-found') {
+        errorMessage = 'User not found. Check your email or contact support.';
+      } else if (error.code === 'auth/wrong-password') {
+        errorMessage = 'Incorrect password. Please try again.';
+      } else if (error.code === 'auth/invalid-email') {
+        errorMessage = 'Invalid email address.';
+      } else if (error.code === 'auth/user-disabled') {
+        errorMessage = 'Account has been disabled.';
+      } else if (error.code === 'auth/too-many-requests') {
+        errorMessage = 'Too many failed attempts. Please try again later.';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
       toast.error('Login failed', {
-        description: error.response?.data?.message || error.message || 'Please try again',
+        description: errorMessage,
       });
     } finally {
       setIsLoading(false);
@@ -138,6 +165,7 @@ export default function PrivateLogin() {
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         required
+                        autoComplete="username"
                         className="pl-10 bg-muted border-border text-foreground"
                     />
                   </div>

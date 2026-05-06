@@ -6,13 +6,13 @@
  */
 
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router';
+import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import { useDataStore } from '../../store/dataStore';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../../components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
 import { toast } from 'sonner';
 import { Lock, DollarSign, TrendingUp, TrendingDown, Download, Plus, FileText } from 'lucide-react';
@@ -55,10 +55,22 @@ export default function FinanceDashboard() {
               <Lock className="w-8 h-8" />
             </div>
             <DialogTitle className="text-2xl font-black tracking-tight">Financial Vault Locked</DialogTitle>
+            <DialogDescription className="text-center text-sm text-muted-foreground">
+              Enter coordinator authorization PIN to access financial controls
+            </DialogDescription>
           </DialogHeader>
           <form onSubmit={handlePinSubmit} className="space-y-6 py-4">
             <div className="space-y-2 text-center">
               <p className="text-sm text-slate-500 font-medium italic">Enter coordinator authorization PIN to proceed</p>
+              <input
+                type="text"
+                name="username"
+                autoComplete="username"
+                value="coordinator"
+                readOnly
+                style={{ display: 'none' }}
+                aria-hidden="true"
+              />
               <Input
                 id="password"
                 type="password"
@@ -80,18 +92,22 @@ export default function FinanceDashboard() {
   }
   
   // Dynamic analytics derived from real budget data
+  const allocatedAmount = budget?.allocatedAmount || 0;
+  const totalAmount = budget?.totalAmount || 0;
+  const remainingAmount = budget?.remainingAmount || 0;
+  
   const spendingTrendData = [
-    { month: 'Jan', amount: (budget.allocatedAmount || 0) * 0.1 },
-    { month: 'Feb', amount: (budget.allocatedAmount || 0) * 0.15 },
-    { month: 'Mar', amount: (budget.allocatedAmount || 0) * 0.12 },
-    { month: 'Apr', amount: (budget.allocatedAmount || 0) * 0.18 },
-    { month: 'May', amount: (budget.allocatedAmount || 0) * 0.22 },
-    { month: 'Jun', amount: (budget.allocatedAmount || 0) * 0.23 },
+    { month: 'Jan', amount: allocatedAmount * 0.1 },
+    { month: 'Feb', amount: allocatedAmount * 0.15 },
+    { month: 'Mar', amount: allocatedAmount * 0.12 },
+    { month: 'Apr', amount: allocatedAmount * 0.18 },
+    { month: 'May', amount: allocatedAmount * 0.22 },
+    { month: 'Jun', amount: allocatedAmount * 0.23 },
   ];
   
   const projectCostsData = [
-    { name: 'Allocated', amount: budget.allocatedAmount || 0 },
-    { name: 'Remaining', amount: budget.remainingAmount || 0 },
+    { name: 'Allocated', amount: allocatedAmount },
+    { name: 'Remaining', amount: remainingAmount },
   ];
   
   return (
@@ -119,7 +135,7 @@ export default function FinanceDashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground mb-1">Total Budget</p>
-                <p className="text-2xl font-bold text-foreground">P {budget.totalAmount?.toLocaleString() || '0'}</p>
+                <p className="text-2xl font-bold text-foreground">P {totalAmount.toLocaleString()}</p>
               </div>
               <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
                 <DollarSign className="w-6 h-6 text-primary" />
@@ -133,7 +149,7 @@ export default function FinanceDashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground mb-1">Allocated Funds</p>
-                <p className="text-2xl font-bold text-emerald-600">P {budget.allocatedAmount?.toLocaleString() || '0'}</p>
+                <p className="text-2xl font-bold text-emerald-600">P {allocatedAmount.toLocaleString()}</p>
               </div>
               <div className="w-12 h-12 bg-emerald-100 rounded-lg flex items-center justify-center">
                 <TrendingUp className="w-6 h-6 text-emerald-600" />
@@ -147,7 +163,7 @@ export default function FinanceDashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground mb-1">Remaining Balance</p>
-                <p className="text-2xl font-bold text-blue-600">P {budget.remainingAmount?.toLocaleString() || '0'}</p>
+                <p className="text-2xl font-bold text-blue-600">P {remainingAmount.toLocaleString()}</p>
               </div>
               <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
                 <TrendingDown className="w-6 h-6 text-blue-600" />
@@ -162,7 +178,7 @@ export default function FinanceDashboard() {
               <div>
                 <p className="text-sm text-muted-foreground mb-1">Utilization</p>
                 <p className="text-2xl font-bold text-orange-600">
-                  {budget.totalAmount ? Math.round((budget.allocatedAmount / budget.totalAmount) * 100) : 0}%
+                  {totalAmount ? Math.round((allocatedAmount / totalAmount) * 100) : 0}%
                 </p>
               </div>
               <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">

@@ -7,29 +7,29 @@
  * FEATURES: Public Header, User Context, Room Info, Sign Out
  */
 
-import { Outlet, useNavigate } from 'react-router';
-import { useAuthStore } from '../store/authStore';
+import { Outlet, useNavigate } from 'react-router-dom';
+import { usePublicAuthStore } from '../store/publicAuthStore';
 import { Button } from '../components/ui/button';
 import { Bell, LogOut, User, Home } from 'lucide-react';
 import { useEffect } from 'react';
 
 export default function PublicLayout() {
   const navigate = useNavigate();
-  const { user, isAuthenticated, isPublicSide, logout } = useAuthStore();
+  const { user, isAuthenticated, logout } = usePublicAuthStore();
   
   /**
-   * Guards the public area from unauthorized or mismatched session types.
+   * Guards the public area from unauthorized access.
    */
   useEffect(() => {
-    if (!isAuthenticated || !isPublicSide) navigate('/', { replace: true });
-  }, [isAuthenticated, isPublicSide, navigate]);
+    if (!isAuthenticated) navigate('/', { replace: true });
+  }, [isAuthenticated, navigate]);
   
   const handleLogout = () => {
     logout();
     navigate('/', { replace: true });
   };
   
-  if (!isAuthenticated || !isPublicSide || !user) return null;
+  if (!isAuthenticated || !user) return null;
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">

@@ -19,7 +19,7 @@ import { useDataStore } from '../../store/dataStore';
 const COLORS = ['#FF8C00', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
 
 export default function CoordinatorDashboard() {
-  const { dashboardAnalytics: stats, budget, fetchTickets, fetchInventory, fetchBlocks, fetchBudget, fetchAnalytics } = useDataStore();
+  const { dashboardAnalytics: stats, budget, fetchTickets, fetchInventory, fetchPublicBlocks, fetchBudget, fetchAnalytics } = useDataStore();
   
   /**
    * Sync core data on load to ensure reports are accurate.
@@ -27,10 +27,10 @@ export default function CoordinatorDashboard() {
   useEffect(() => {
     fetchTickets();
     fetchInventory();
-    fetchBlocks();
+    fetchPublicBlocks();
     fetchBudget();
     fetchAnalytics();
-  }, [fetchTickets, fetchInventory, fetchBlocks, fetchBudget, fetchAnalytics]);
+  }, [fetchTickets, fetchInventory, fetchPublicBlocks, fetchBudget, fetchAnalytics]);
   
   const mapToChart = (data: Record<string, number> = {}) => 
     Object.entries(data).map(([name, value]) => ({ name: name.replace('_', ' ').toUpperCase(), value }));

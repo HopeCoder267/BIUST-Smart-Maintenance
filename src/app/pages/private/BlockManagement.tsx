@@ -10,49 +10,38 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/ca
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../../components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '../../components/ui/dialog';
 import { Badge } from '../../components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
 import { toast } from 'sonner';
 import { Building2, Users, Download, Plus, Trash2, Upload, UserPlus } from 'lucide-react';
 import { useDataStore } from '../../store/dataStore';
-
-interface Block {
-  id: string;
-  name: string;
-  total_rooms: number;
-  capacity: number;
-  total_residents: number;
-  status: string;
-  created_at: string;
-  updated_at: string;
-}
-
-interface Resident {
-  id: string;
-  name: string;
-  student_id: string;
-  omang?: string;
-  level?: string;
-  room_id: string;
-  digital_key: string;
-  room_number?: string;
-  block_name?: string;
-  created_at: string;
-  updated_at: string;
-}
+import { Block, Resident } from '../../types';
+import { 
+  collection,
+  query,
+  getDocs,
+  doc,
+  updateDoc
+} from 'firebase/firestore';
+import { db } from '../../../firebase';
 
 export default function BlockManagement() {
   const { 
     blocks, 
     residents, 
+    rooms,
     fetchBlocks, 
     fetchResidents, 
+    fetchRooms,
     addBlock, 
     updateBlock, 
     deleteBlock, 
     addResident, 
-    deleteResident 
+    updateResident,
+    deleteResident,
+    addRoom,
+    deleteRoom
   } = useDataStore();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
@@ -67,6 +56,8 @@ export default function BlockManagement() {
     room: '',
     digitalKey: ''
   });
+  const [editingResident, setEditingResident] = useState<Resident | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
   const [newBlockName, setNewBlockName] = useState('');
   const [newBlockCapacity, setNewBlockCapacity] = useState('100');
   const [csvFile, setCsvFile] = useState<File | null>(null);
@@ -143,19 +134,52 @@ export default function BlockManagement() {
 
     const residentData = {
       name: newResident.name,
-      student_id: newResident.studentId,
+      studentId: newResident.studentId,
       omang: newResident.omang,
       level: newResident.level,
-      block_name: selectedBlock?.name || '',
-      room_number: newResident.room,
-      digital_key: newResident.digitalKey,
-      room_id: '', // Will be set by backend
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+      blockName: selectedBlock?.name || '',
+      blockId: selectedBlock?.id || '', // CRITICAL: Add blockId for proper filtering
+      roomNumber: newResident.room,
+      digitalKey: newResident.digitalKey,
+      roomId: '', // Will be set by backend
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     };
 
-    const success = await addResident(residentData);
-    if (success) {
+    console.log('DEBUG: Adding resident with data:', residentData);
+    console.log('DEBUG: Selected block:', selectedBlock);
+
+    // CRITICAL: Create both resident and room entries
+    try {
+      // Add resident first
+      const residentSuccess = await addResident(residentData);
+      if (!residentSuccess) {
+        toast.error('Failed to add resident');
+        return;
+      }
+
+      // Create room entry
+      const roomData = {
+        blockName: selectedBlock?.name || '',
+        blockId: selectedBlock?.id || '',
+        roomID: newResident.room,
+        roomId: newResident.room,
+        digitalKey: newResident.digitalKey,
+        residentName: newResident.name,
+        residentId: '', // Will be populated after resident is created
+        occupied: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+
+      const roomSuccess = await addRoom(roomData);
+      if (!roomSuccess) {
+        toast.error('Resident added but room creation failed');
+      } else {
+        toast.success('Resident and room added successfully');
+      }
+
+      // Reset form
       setNewResident({
         name: '',
         studentId: '',
@@ -165,10 +189,21 @@ export default function BlockManagement() {
         digitalKey: ''
       });
       
-      // Refresh blocks to update counts
-      await fetchBlocks();
+      // CRITICAL: Update block resident count
+      if (selectedBlock) {
+        await updateBlockResidentCount(selectedBlock.id);
+      }
       
-      toast.success('Resident added successfully');
+      // Refresh data
+      await fetchBlocks();
+      if (selectedBlock) {
+        await fetchResidents(selectedBlock.id);
+        await fetchRooms(selectedBlock.id);
+      }
+      
+    } catch (error: any) {
+      console.error('Failed to add resident and room:', error);
+      toast.error('Failed to add resident and room');
     }
   };
 
@@ -178,12 +213,150 @@ export default function BlockManagement() {
       return;
     }
 
-    const success = await deleteResident(resident.id);
-    if (success) {
+    try {
+      // Delete resident first
+      const residentSuccess = await deleteResident(resident.id);
+      if (!residentSuccess) {
+        toast.error('Failed to delete resident');
+        return;
+      }
+
+      // Find and delete associated room
+      if (rooms && resident.roomNumber) {
+        const associatedRoom = rooms.find(room => 
+          room.roomId === resident.roomNumber && 
+          room.blockId === resident.blockId
+        );
+        
+        if (associatedRoom) {
+          // Delete the room entry using dataStore
+          await deleteRoom(associatedRoom.id);
+        }
+      }
+
       // Refresh blocks to update counts
       await fetchBlocks();
       
-      toast.success('Resident deleted successfully');
+      // CRITICAL: Update block resident count
+      if (selectedBlock) {
+        await updateBlockResidentCount(selectedBlock.id);
+      }
+      
+      // Refresh residents for current block
+      if (selectedBlock) {
+        await fetchResidents(selectedBlock.id);
+        await fetchRooms(selectedBlock.id);
+      }
+      
+      toast.success('Resident and associated room deleted successfully');
+    } catch (error: any) {
+      console.error('Failed to delete resident:', error);
+      toast.error('Failed to delete resident');
+    }
+  };
+
+  // DATASTORE PATTERN: Edit resident using centralized dataStore
+  const handleEditResident = (resident: Resident) => {
+    setEditingResident(resident);
+    setNewResident({
+      name: resident.name,
+      studentId: resident.studentId || '',
+      omang: resident.omang || '',
+      level: resident.level || '',
+      room: resident.roomNumber || '',
+      digitalKey: resident.digitalKey || ''
+    });
+    setIsEditing(true);
+  };
+
+  // DATASTORE PATTERN: Update resident using centralized dataStore
+  const handleUpdateResident = async () => {
+    if (!editingResident || !newResident.name || !newResident.studentId || !newResident.digitalKey || !newResident.room) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+
+    const updatedData = {
+      name: newResident.name,
+      studentId: newResident.studentId,
+      omang: newResident.omang,
+      level: newResident.level,
+      blockName: selectedBlock?.name || '',
+      blockId: selectedBlock?.id || '', // CRITICAL: Include blockId for proper filtering
+      roomNumber: newResident.room,
+      digitalKey: newResident.digitalKey,
+      roomId: editingResident.roomId || '',
+      updatedAt: new Date().toISOString()
+    };
+
+    const success = await updateResident(editingResident.id, updatedData);
+    if (success) {
+      // Reset form
+      setNewResident({
+        name: '',
+        studentId: '',
+        omang: '',
+        level: '',
+        room: '',
+        digitalKey: ''
+      });
+      setEditingResident(null);
+      setIsEditing(false);
+      
+      // CRITICAL: Update block resident count
+      if (selectedBlock) {
+        await updateBlockResidentCount(selectedBlock.id);
+      }
+      
+      // Refresh data
+      await fetchBlocks();
+      if (selectedBlock) {
+        await fetchResidents(selectedBlock.id);
+      }
+      
+      toast.success('Resident updated successfully');
+    }
+  };
+
+  // DATASTORE PATTERN: Cancel editing
+  const handleCancelEdit = () => {
+    setNewResident({
+      name: '',
+      studentId: '',
+      omang: '',
+      level: '',
+      room: '',
+      digitalKey: ''
+    });
+    setEditingResident(null);
+    setIsEditing(false);
+  };
+
+  // CRITICAL: Update block resident counts after resident operations
+  const updateBlockResidentCount = async (blockId: string) => {
+    try {
+      // Count residents for this block
+      const allResidentsQuery = query(collection(db, 'residents'));
+      const querySnapshot = await getDocs(allResidentsQuery);
+      const allResidents = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      
+      const blockResidents = allResidents.filter((r: any) => 
+        r.blockId === blockId || 
+        r.blockName === blocks.find(b => b.id === blockId)?.name
+      );
+      
+      // Update the block with new resident count
+      await updateBlock(blockId, {
+        totalResidents: blockResidents.length,
+        updatedAt: new Date().toISOString()
+      });
+      
+      console.log(`Updated block ${blockId} resident count to ${blockResidents.length}`);
+    } catch (error: any) {
+      console.error('Failed to update block resident count:', error);
     }
   };
 
@@ -244,6 +417,15 @@ Bob Smith,ST002,987654321,Year 3 Engineering,Block A,102,BOB102`;
       setIsImportDialogOpen(false);
       setCsvFile(null);
       
+      // CRITICAL: Update all block resident counts after CSV import
+      const uniqueBlocks = [...new Set(students.map(s => s.block || s.block_name))];
+      for (const blockName of uniqueBlocks) {
+        const block = blocks.find(b => b.name === blockName);
+        if (block) {
+          await updateBlockResidentCount(block.id);
+        }
+      }
+      
       // Refresh dataStore to show new data
       await fetchBlocks();
       if (selectedBlock) {
@@ -272,7 +454,7 @@ Bob Smith,ST002,987654321,Year 3 Engineering,Block A,102,BOB102`;
 
   // Calculate stats
   const totalCapacity = blocks.reduce((sum, block) => sum + (block.capacity || 0), 0);
-  const totalOccupied = blocks.reduce((sum, block) => sum + (block.total_residents || 0), 0);
+  const totalOccupied = blocks.reduce((sum, block) => sum + (block.totalResidents || 0), 0);
   const occupancyRate = totalCapacity > 0 ? Math.round((totalOccupied / totalCapacity) * 100) : 0;
 
   return (
@@ -294,6 +476,9 @@ Bob Smith,ST002,987654321,Year 3 Engineering,Block A,102,BOB102`;
             <DialogContent className="bg-white border-border text-foreground max-w-2xl">
               <DialogHeader>
                 <DialogTitle className="text-xl">Bulk Student Import (CSV)</DialogTitle>
+                <DialogDescription>
+                  Import multiple students at once using a CSV file
+                </DialogDescription>
               </DialogHeader>
               
               <div className="space-y-4">
@@ -354,6 +539,9 @@ Bob Smith,ST002,987654321,Year 3 Engineering,Block A,102,BOB102`;
             <DialogContent className="bg-white border-border text-foreground">
               <DialogHeader>
                 <DialogTitle>Add New Block</DialogTitle>
+                <DialogDescription>
+                  Create a new residential block for student accommodation
+                </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
                 <div>
@@ -396,7 +584,7 @@ Bob Smith,ST002,987654321,Year 3 Engineering,Block A,102,BOB102`;
                   <div>
                     <CardTitle className="text-lg">{block.name}</CardTitle>
                     <p className="text-sm text-muted-foreground">
-                      {block.total_rooms || 0} rooms
+                      {block.totalRooms || 0} rooms
                     </p>
                   </div>
                 </div>
@@ -411,14 +599,14 @@ Bob Smith,ST002,987654321,Year 3 Engineering,Block A,102,BOB102`;
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Occupancy</span>
                   <span className="font-semibold">
-                    {block.total_residents || 0} / {block.capacity || 0}
+                    {block.totalResidents || 0} / {block.capacity || 0}
                   </span>
                 </div>
                 <div className="h-2 bg-muted rounded-full overflow-hidden">
                   <div
                     className="h-full bg-primary transition-all"
                     style={{ 
-                      width: `${block.capacity > 0 ? Math.round((block.total_residents / block.capacity) * 100) : 0}%` 
+                      width: `${block.capacity > 0 ? Math.round((block.totalResidents / block.capacity) * 100) : 0}%` 
                     }}
                   />
                 </div>
@@ -432,7 +620,7 @@ Bob Smith,ST002,987654321,Year 3 Engineering,Block A,102,BOB102`;
                   onClick={() => openResidentDialog(block)}
                 >
                   <Users className="w-4 h-4" />
-                  Manage ({block.total_residents || 0})
+                  Manage ({block.totalResidents || 0})
                 </Button>
                 <Button
                   size="sm"
@@ -456,12 +644,17 @@ Bob Smith,ST002,987654321,Year 3 Engineering,Block A,102,BOB102`;
             <DialogTitle className="text-xl">
               🏠 Manage Residents - {selectedBlock?.name}
             </DialogTitle>
+            <DialogDescription>
+              Add, view, and manage residents for this block
+            </DialogDescription>
           </DialogHeader>
           
           <div className="space-y-6">
             {/* Add Resident - Working Pattern */}
             <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-              <h3 className="font-semibold text-blue-900 mb-3">➕ Add Resident</h3>
+              <h3 className="font-semibold text-blue-900 mb-3">
+                {isEditing ? '✏️ Edit Resident' : '➕ Add Resident'}
+              </h3>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label className="text-sm font-medium">Name *</Label>
@@ -500,10 +693,26 @@ Bob Smith,ST002,987654321,Year 3 Engineering,Block A,102,BOB102`;
                   />
                 </div>
               </div>
-              <Button onClick={handleAddResident} className="mt-3 bg-blue-600 text-white hover:bg-blue-700">
-                <UserPlus className="w-4 h-4 mr-2" />
-                Add Resident
-              </Button>
+              <div className="flex gap-2 mt-3">
+                {isEditing ? (
+                  <>
+                    <Button onClick={handleUpdateResident} className="bg-blue-600 text-white hover:bg-blue-700">
+                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      Update Resident
+                    </Button>
+                    <Button onClick={handleCancelEdit} variant="outline">
+                      Cancel
+                    </Button>
+                  </>
+                ) : (
+                  <Button onClick={handleAddResident} className="bg-blue-600 text-white hover:bg-blue-700">
+                    <UserPlus className="w-4 h-4 mr-2" />
+                    Add Resident
+                  </Button>
+                )}
+              </div>
             </div>
 
             {/* Residents List */}
@@ -535,13 +744,18 @@ Bob Smith,ST002,987654321,Year 3 Engineering,Block A,102,BOB102`;
                       {residents.map((resident) => (
                         <TableRow key={resident.id}>
                           <TableCell>{resident.name}</TableCell>
-                          <TableCell>{resident.student_id}</TableCell>
-                          <TableCell>{resident.room_number}</TableCell>
+                          <TableCell>{resident.studentId}</TableCell>
+                          <TableCell>{resident.roomNumber}</TableCell>
                           <TableCell>
-                            <code className="text-xs bg-muted px-2 py-1 rounded">{resident.digital_key}</code>
+                            <code className="text-xs bg-muted px-2 py-1 rounded">{resident.digitalKey}</code>
                           </TableCell>
                           <TableCell>
                             <div className="flex gap-2">
+                              <Button size="sm" variant="outline" onClick={() => handleEditResident(resident)}>
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 0L8.828 15.172a2 2 0 00-2.828 0l-4.414-4.414a2 2 0 010-2.828z" />
+                                </svg>
+                              </Button>
                               <Button size="sm" variant="outline" onClick={() => handleDeleteResident(resident)}>
                                 <Trash2 className="w-4 h-4" />
                               </Button>

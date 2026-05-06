@@ -180,14 +180,14 @@ export default function InventoryPage() {
                         {item.minThreshold} {item.unit}
                       </TableCell>
                       <TableCell className="text-muted-foreground">
-                        P {item.unitPrice || item.unit_price || 0}
+                        P {item.unitPrice || 0}
                       </TableCell>
                       <TableCell className="text-muted-foreground">
-                        P {item.totalValue || item.total_value || 0}
+                        P {item.totalValue || 0}
                       </TableCell>
                       <TableCell>
-                        <Badge className={badgeStyles[item.status]}>
-                          {item.status.replace('_', ' ')}
+                        <Badge className={badgeStyles[item.status || 'in_stock']}>
+                          {(item.status || 'in_stock').replace('_', ' ')}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-muted-foreground">

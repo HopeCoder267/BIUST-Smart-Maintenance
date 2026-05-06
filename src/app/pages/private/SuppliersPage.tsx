@@ -43,9 +43,9 @@ export default function SuppliersPage() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [selectedSupplier, setSelectedSupplier] = useState<any | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [selectedSupplier, setSelectedSupplier] = useState<any>(null);
-  const [editingSupplier, setEditingSupplier] = useState<any>(null);
+  const [editFormData, setEditFormData] = useState({});
   const [isLoading, setIsLoading] = useState(false);
   
   const [formData, setFormData] = useState({
@@ -181,6 +181,9 @@ export default function SuppliersPage() {
         performanceScore: 100
       });
       setIsAddDialogOpen(false);
+      
+      // CRITICAL: Refresh suppliers to show new supplier immediately
+      await fetchSuppliers();
     }
   };
 
@@ -528,8 +531,28 @@ export default function SuppliersPage() {
                           <Eye className="w-4 h-4" />
                         </Button>
                         
-                        <Button variant="ghost" size="sm">
+                        <Button variant="ghost" size="sm" onClick={() => {
+                          setSelectedSupplier(supplier);
+                          setEditFormData(supplier);
+                          setIsEditDialogOpen(true);
+                        }}>
                           <Edit className="w-4 h-4" />
+                        </Button>
+                        
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={async () => {
+                            if (confirm('Are you sure you want to delete this supplier?')) {
+                              const success = await deleteSupplier(supplier.id);
+                              if (success) {
+                                toast.success('Supplier deleted successfully');
+                                await fetchSuppliers();
+                              }
+                            }
+                          }}
+                        >
+                          <Trash2 className="w-4 h-4" />
                         </Button>
                       </div>
                     </TableCell>

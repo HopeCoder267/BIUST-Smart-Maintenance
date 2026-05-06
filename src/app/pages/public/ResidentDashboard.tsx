@@ -10,30 +10,38 @@
  */
 
 import { useState, useEffect } from 'react';
-import { useAuthStore } from '../../store/authStore';
+import { useNavigate } from 'react-router-dom';
+import { usePublicAuthStore } from '../../store/publicAuthStore';
 import { useDataStore } from '../../store/dataStore';
 import { Button } from '../../components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/card';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
-import { Textarea } from '../../components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../../components/ui/dialog';
+import { Textarea } from '../../components/ui/textarea';
 import { Badge } from '../../components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
 import { toast } from 'sonner';
-import {
-  Plus,
+import { 
+  Plus, 
+  Search, 
+  AlertCircle, 
+  CheckCircle,
   Clock,
-  CheckCircle2,
-  AlertCircle,
-  Calendar,
-  User as UserIcon,
+  Filter,
   FileText,
   Bell,
+  Camera,
+  Upload,
+  CheckCircle2,
+  Calendar,
+  User as UserIcon,
   TrendingUp,
-  Wrench,
+  Wrench
 } from 'lucide-react';
+import FileUpload from '../../components/FileUpload';
+
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../../components/ui/dialog';
 import { Ticket, TicketCategory } from '../../types';
 import ProgressTimeline from '../../components/ProgressTimeline';
 import { format } from 'date-fns';
@@ -44,35 +52,56 @@ import { format } from 'date-fns';
  * Central hub for residents to manage their maintenance requests
  */
 export default function ResidentDashboard() {
-  const { user } = useAuthStore();
-  const { tickets, fetchTickets, fetchNotifications, addTicket, getTicketsByUser, getFilteredNotifications, updateTicket } = useDataStore();
+  const navigate = useNavigate();
+  const { user, isAuthenticated } = usePublicAuthStore();
+  const { 
+    tickets, 
+    notifications, 
+    addTicket, 
+    updateTicket,
+    uploadAttachment,
+    getTicketsByUser,
+    getFilteredNotifications,
+    fetchTickets,
+    fetchNotifications
+  } = useDataStore();
+    
+  const [isLoading, setIsLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [showNewTicketForm, setShowNewTicketForm] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [isSubmitDialogOpen, setIsSubmitDialogOpen] = useState(false);
-  const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
+  const [selectedTicket, setSelectedTicket] = useState<any>(null);
   const [isEditingAvailability, setIsEditingAvailability] = useState(false);
-  const [tempAvailability, setTempAvailability] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    const loadData = async () => {
-      setIsLoading(true);
-      await Promise.all([
-        fetchTickets(),
-        fetchNotifications()
-      ]);
-      setIsLoading(false);
-    };
-    loadData();
-  }, [fetchTickets, fetchNotifications]);
+  const [tempAvailability, setTempAvailability] = useState('available');
   
-  // Form state for new ticket submission
+  // Form state
   const [newTicket, setNewTicket] = useState({
     title: '',
     description: '',
-    category: '' as TicketCategory | '',
-    availability: '',
+    category: '',
+    priority: 'medium',
+    block: '',
+    room: '',
+    residentAvailability: 'available'
   });
   
-  if (!user) return null;
+  useEffect(() => {
+    // Only run navigation and auth logic if Router is ready
+    if (isAuthenticated === undefined) {
+      return;
+    }
+    
+    if (!isAuthenticated) {
+      navigate('/');
+      return;
+    }
+    
+    fetchTickets();
+    fetchNotifications();
+  }, [isAuthenticated, navigate, fetchTickets, fetchNotifications]);
   
   /**
    * Get user's tickets from data store
@@ -121,39 +150,71 @@ export default function ResidentDashboard() {
   /**
    * Handle new ticket submission
    */
-  const handleSubmitTicket = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validate form
-    if (!newTicket.title.trim() || !newTicket.description.trim() || !newTicket.category) {
+    if (!newTicket.title.trim() || !newTicket.description.trim()) {
       toast.error('Please fill in all required fields');
       return;
     }
     
-    // Check for smart duplicate tickets
-    const duplicate = findDuplicateTicket(newTicket.title, newTicket.category, newTicket.description);
-    
-    if (duplicate) {
+    if (findDuplicateTicket(newTicket.title, newTicket.category, newTicket.description)) {
       toast.error('Potential duplicate ticket detected', {
-        description: `You already have an active ticket (#${duplicate.ticketNumber}: "${duplicate.title}") in this category that seems similar.`,
+        description: `You already have an active ticket in this category that seems similar.`,
       });
       return;
     }
     
-    // Add ticket to data store
-    addTicket({
-      title: newTicket.title,
-      description: newTicket.description,
-      category: newTicket.category,
-      block: user.block || '',
-      room: user.room || '',
-      submittedBy: user,
-      residentAvailability: newTicket.availability
-    });
-    
-    // Reset form and close dialog
-    setNewTicket({ title: '', description: '', category: '', availability: '' });
-    setIsSubmitDialogOpen(false);
+    try {
+      setIsLoading(true);
+      
+      const ticketData = {
+        ...newTicket,
+        submittedBy: user,
+        block: user?.block || newTicket.block,
+        room: user?.room || newTicket.room,
+        status: 'open',
+        priority: newTicket.priority,
+        category: newTicket.category,
+        currentStage: 'report_submitted' as const,
+        progressHistory: [{
+          stage: 'report_submitted' as const,
+          timestamp: new Date(),
+          updatedBy: user,
+          notes: 'Initial ticket submitted by resident'
+        }],
+        photos: uploadedFiles.map(file => ({
+          filename: file.name,
+          originalName: file.name,
+          fileSize: file.size,
+          mimeType: file.type,
+          filePath: `temp/${file.name}`,
+          uploadedAt: new Date().toISOString()
+        }))
+      };
+      
+      await addTicket(ticketData);
+      
+      // Reset form
+      setNewTicket({
+        title: '',
+        description: '',
+        category: '',
+        priority: 'medium',
+        block: '',
+        room: '',
+        residentAvailability: 'available'
+      });
+      setUploadedFiles([]);
+      setShowNewTicketForm(false);
+      
+      toast.success('Ticket submitted successfully');
+    } catch (error) {
+      console.error('Submit error:', error);
+      toast.error('Failed to submit ticket');
+    } finally {
+      setIsLoading(false);
+    }
   };
   
   /**
@@ -306,7 +367,7 @@ export default function ResidentDashboard() {
                 </DialogDescription>
               </DialogHeader>
               
-              <form onSubmit={handleSubmitTicket} className="space-y-4 mt-4 text-foreground">
+              <form onSubmit={handleSubmit} className="space-y-4 mt-4 text-foreground">
                 {/* Title */}
                 <div className="space-y-2">
                   <Label htmlFor="title" className="text-foreground">Issue Title *</Label>
@@ -371,9 +432,9 @@ export default function ResidentDashboard() {
                   <Input
                     id="availability"
                     placeholder="e.g., Weekdays after 4 PM, Saturdays all day"
-                    value={newTicket.availability}
+                    value={newTicket.residentAvailability}
                     onChange={(e) =>
-                      setNewTicket({ ...newTicket, availability: e.target.value })
+                      setNewTicket({ ...newTicket, residentAvailability: e.target.value })
                     }
                     className="bg-muted border-border text-foreground"
                   />

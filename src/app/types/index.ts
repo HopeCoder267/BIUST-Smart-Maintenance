@@ -116,9 +116,9 @@ export interface Ticket {
   progressHistory: ProgressHistoryEntry[];
   
   // Additional data
-  photos?: string[];              // URLs to uploaded photos
-  notes?: TicketNote[];
-  residentAvailability?: string;  // When the student is available in their room
+  photoUrls?: string[];              // URLs to uploaded photos
+  ticketNotes?: TicketNote[];
+  residentAvailability?: string;  // When student is available in their room
 }
 
 /**
@@ -388,12 +388,12 @@ export interface Supplier {
 export interface Block {
   id: string;
   name: string;
-  total_rooms: number;
+  totalRooms: number;
   capacity: number;
-  total_residents: number;
+  totalResidents: number;
   status: string;                  // 'active', 'inactive', 'maintenance'
-  created_at: string;
-  updated_at: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 /**
@@ -422,15 +422,16 @@ export interface Room {
 export interface Resident {
   id: string;
   name: string;
-  student_id: string;
+  studentId: string;
   omang?: string;
   level?: string;
-  room_id: string;
-  digital_key: string;
-  room_number?: string;
-  block_name?: string;
-  created_at: string;
-  updated_at: string;
+  roomId: string;
+  digitalKey: string;
+  roomNumber?: string;
+  blockName?: string;
+  blockId?: string; // Added for block reference
+  createdAt: string;
+  updatedAt: string;
 }
 
 /**

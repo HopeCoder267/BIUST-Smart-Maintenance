@@ -18,6 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Badge } from '../../components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../../components/ui/dialog';
 import { Label } from '../../components/ui/label';
+import { toast } from 'sonner';
 import { Calendar, Clock, Users, CheckCircle, AlertTriangle, Plus, Edit, Trash2, CalendarDays } from 'lucide-react';
 import { format, addDays, addWeeks, addMonths, isAfter, isBefore, startOfDay } from 'date-fns';
 import { PreventiveMaintenanceSchedule, User } from '../../types';
@@ -153,7 +154,12 @@ export default function PreventiveMaintenancePage() {
   const handleDelete = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this preventive maintenance schedule?')) {
       try {
-        await deletePreventiveMaintenance(id);
+        const success = await deletePreventiveMaintenance(id);
+        if (success) {
+          toast.success('Preventive maintenance schedule deleted successfully');
+          // CRITICAL: Refresh schedules to show updated list immediately
+          await fetchPreventiveMaintenance();
+        }
       } catch (error) {
         console.error('Failed to delete preventive maintenance schedule:', error);
       }

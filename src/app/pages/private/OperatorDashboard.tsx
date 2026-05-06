@@ -8,7 +8,7 @@
  */
 //check
 import { useState, useEffect, useMemo } from 'react';
-import { useAuthStore } from '../../store/authStore';
+import { usePrivateAuthStore } from '../../store/privateAuthStore';
 import { useDataStore } from '../../store/dataStore';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
@@ -21,11 +21,10 @@ import { Label } from '../../components/ui/label';
 import { Search, UserPlus, AlertTriangle, TrendingUp, Clock, CheckCircle2, Settings } from 'lucide-react';
 import { TicketPriority } from '../../types';
 import ProgressTimeline from '../../components/ProgressTimeline';
-import API from '../../services/mockData';
 import { format } from 'date-fns';
 
 export default function OperatorDashboard() {
-  const { tickets, users, fetchTickets, fetchUsers, assignTechnician, dashboardAnalytics: stats, fetchAnalytics } = useDataStore();
+  const { tickets, users, fetchTickets, fetchUsers, assignTechnician, updatePriority, dashboardAnalytics: stats, fetchAnalytics } = useDataStore();
   const [query, setQuery] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState({ priority: 'all', status: 'all' });
@@ -40,8 +39,13 @@ export default function OperatorDashboard() {
   useEffect(() => { 
     fetchTickets();
     fetchAnalytics();
-    API.get('/users?role=technician').then(res => setTechnicians(res.data));
   }, [fetchTickets, fetchAnalytics]);
+
+  // Filter technicians from users data
+  useEffect(() => {
+    const technicianUsers = users.filter(user => user.role === 'technician');
+    setTechnicians(technicianUsers);
+  }, [users]);
   
   const filteredTickets = useMemo(() => tickets.filter(t => {
     const matchSearch = !query || [t.title, t.ticketNumber, t.block].some(f => f && f.toLowerCase().includes(query.toLowerCase()));
@@ -87,25 +91,38 @@ export default function OperatorDashboard() {
   /**
    * Handle technician assignment
    */
-  const handleAssignTechnician = (technicianId: string) => {
+  const handleAssignTechnician = async (technicianId: string) => {
     if (!selectedTicket) return;
     
     const technician = technicians.find(t => t.id === technicianId);
     if (!technician) return;
     
-    assignTechnician(selectedTicket.id, technician);
+    const success = await assignTechnician(selectedTicket.id, technician);
+    
+    if (success) {
+      // Refresh data to ensure consistency
+      await fetchTickets();
+      await fetchAnalytics();
+    }
     
     setIsAssignDialogOpen(false);
     setSelectedTicket(null);
   };
-  
+
   /**
    * Handle priority update
    */
-  const handleUpdatePriority = (priority: TicketPriority) => {
+  const handleUpdatePriority = async (priority: TicketPriority) => {
     if (!selectedTicket) return;
     
-    updatePriority(selectedTicket.id, priority);
+    const success = await updatePriority(selectedTicket.id, priority);
+    
+    if (success) {
+      // Refresh data to ensure consistency
+      await fetchTickets();
+      await fetchAnalytics();
+    }
+    
     setIsPriorityDialogOpen(false);
     setSelectedTicket(null);
   };
@@ -142,7 +159,7 @@ export default function OperatorDashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground mb-1">In Progress</p>
-                <p className="text-3xl font-bold text-foreground">{dashboardAnalytics?.inProgressTickets || 0}</p>
+                <p className="text-3xl font-bold text-foreground">{stats?.inProgressTickets || 0}</p>
               </div>
               <div className="w-12 h-12 bg-blue-500/10 rounded-lg flex items-center justify-center">
                 <Clock className="w-6 h-6 text-blue-500" />
@@ -156,7 +173,7 @@ export default function OperatorDashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground mb-1">Completed</p>
-                <p className="text-3xl font-bold text-foreground">{dashboardAnalytics?.completedTickets || 0}</p>
+                <p className="text-3xl font-bold text-foreground">{stats?.completedTickets || 0}</p>
               </div>
               <div className="w-12 h-12 bg-green-500/10 rounded-lg flex items-center justify-center">
                 <CheckCircle2 className="w-6 h-6 text-green-500" />
@@ -170,7 +187,7 @@ export default function OperatorDashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground mb-1">Avg. Resolution</p>
-                <p className="text-3xl font-bold text-foreground">{dashboardAnalytics?.averageResolutionTime || 0}h</p>
+                <p className="text-3xl font-bold text-foreground">{stats?.averageResolutionTime || 0}h</p>
               </div>
               <div className="w-12 h-12 bg-purple-500/10 rounded-lg flex items-center justify-center">
                 <TrendingUp className="w-6 h-6 text-purple-500" />
@@ -260,9 +277,9 @@ export default function OperatorDashboard() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredTickets.map((ticket) => (
+                  filteredTickets.map((ticket, index) => (
                     <TableRow
-                      key={ticket.id}
+                      key={`${ticket.id}-${index}`}
                       className="hover:bg-slate-700/30 cursor-pointer"
                       onClick={() => setSelectedTicket(ticket)}
                     >
@@ -276,7 +293,14 @@ export default function OperatorDashboard() {
                         </div>
                       </TableCell>
                       <TableCell className="text-slate-300">
-                        {ticket.block} • {ticket.room}
+                        <div>
+                          <p className="font-medium">{ticket.block} • {ticket.room}</p>
+                          {ticket.submittedBy && (
+                            <p className="text-xs text-slate-400">
+                              {ticket.submittedBy.name} ({ticket.submittedBy.studentId})
+                            </p>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>
                         {ticket.priority ? (
@@ -307,7 +331,7 @@ export default function OperatorDashboard() {
                         )}
                       </TableCell>
                       <TableCell className="text-slate-300 text-sm">
-                        {ticket.createdAt ? format(new Date(ticket.createdAt), 'MMM d, yyyy') : 'N/A'}
+                        {ticket.createdAt && !isNaN(new Date(ticket.createdAt).getTime()) ? format(new Date(ticket.createdAt), 'MMM d, yyyy') : 'N/A'}
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">

@@ -4,20 +4,53 @@
  * Detailed view of a single ticket with full progress timeline
  */
 
-import { useParams, useNavigate } from 'react-router';
+import { useEffect, useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent } from '../../components/ui/card';
 import { ArrowLeft } from 'lucide-react';
 import { useDataStore } from '../../store/dataStore';
 import ProgressTimeline from '../../components/ProgressTimeline';
 import { format } from 'date-fns';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { db } from '../../../firebase';
+import { toast } from 'sonner';
 
 export default function TicketDetails() {
   const { ticketId } = useParams();
   const navigate = useNavigate();
   const { tickets } = useDataStore();
+  const [ticket, setTicket] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
   
-  const ticket = tickets.find((t) => t.id === ticketId);
+  useEffect(() => {
+    if (!ticketId) {
+      setIsLoading(false);
+      return;
+    }
+    
+    // Set up real-time listener for specific ticket
+    const unsubscribe = onSnapshot(doc(db, 'tickets', ticketId), (docSnapshot) => {
+      if (docSnapshot.exists()) {
+        setTicket({ id: docSnapshot.id, ...docSnapshot.data() });
+      } else {
+        setTicket(null);
+        toast.error('Ticket not found');
+      }
+      setIsLoading(false);
+    });
+    
+    return () => unsubscribe();
+  }, [ticketId]);
+  if (isLoading) {
+    return (
+      <Card className="bg-white border-border">
+        <CardContent className="p-12 text-center">
+          <p className="text-muted-foreground">Loading ticket details...</p>
+        </CardContent>
+      </Card>
+    );
+  }
   
   if (!ticket) {
     return (

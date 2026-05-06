@@ -113,10 +113,11 @@ export default function AnalyticsPage() {
           : 0;
         
         return {
-          technician: technician.name,
+          name: technician.name,
           total: techTickets.length,
           completed,
-          avgTime: Math.round(avgTime * 10) / 10
+          avgTime: Math.round(avgTime * 10) / 10,
+          efficiency: completed > 0 ? (completed / techTickets.length) * 100 : 0
         };
       });
       
@@ -370,7 +371,7 @@ export default function AnalyticsPage() {
                   dataKey="value"
                 >
                   {priorityChartData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    <Cell key={`priority-cell-${entry.name}-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
                 <Tooltip />

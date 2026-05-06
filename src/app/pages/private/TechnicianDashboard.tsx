@@ -26,9 +26,12 @@ export default function TechnicianDashboard() {
   const { user } = useAuthStore();
   const { tickets, fetchTickets, updateProgress, updateStatus } = useDataStore();
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
-  const [dialogs, setDialogs] = useState({ update: false, complete: false });
+  const [isUpdateDialogOpen, setIsUpdateDialogOpen] = useState(false);
+  const [isCompleteDialogOpen, setIsCompleteDialogOpen] = useState(false);
+  const [selectedStage, setSelectedStage] = useState<ProgressStage>('work_in_progress');
+  const [updateNotes, setUpdateNotes] = useState('');
+  const [completionNotes, setCompletionNotes] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [form, setForm] = useState({ stage: 'work_in_progress' as ProgressStage, notes: '' });
 
   useEffect(() => { 
     const load = async () => {
@@ -39,21 +42,58 @@ export default function TechnicianDashboard() {
     load();
   }, [fetchTickets]);
   
-  const assigned = useMemo(() => tickets.filter(t => t.assigned_to === user?.id), [tickets, user]);
+  const assigned = useMemo(() => tickets.filter(t => t.assignedTo?.id === user?.id), [tickets, user]);
   const activeTickets = useMemo(() => assigned.filter(t => t.status !== 'completed' && t.status !== 'closed'), [assigned]);
   const historyTickets = useMemo(() => assigned.filter(t => t.status === 'completed' || t.status === 'closed'), [assigned]);
 
-  const handleUpdate = async (isClosing = false) => {
-    if (!selectedTicket || !form.notes.trim() || !user) return;
+  const handleUpdateProgress = async () => {
+    if (!selectedTicket || !updateNotes.trim() || !user) return;
     try {
-      await updateProgress(selectedTicket.id, isClosing ? 'resolved' : form.stage, form.notes, user);
-      if (isClosing) await updateStatus(selectedTicket.id, 'completed');
-      setDialogs({ update: false, complete: false });
-      setForm({ stage: 'work_in_progress', notes: '' });
+      const progressData = {
+        currentStage: selectedStage,
+        notes: updateNotes,
+        updatedBy: user
+      };
+      await updateProgress(selectedTicket.id, progressData);
+      setIsUpdateDialogOpen(false);
+      setUpdateNotes('');
       setSelectedTicket(null);
+      await fetchTickets();
     } catch (e) {
-      toast.error('Failed to sync update');
+      console.error('Failed to update progress:', e);
     }
+  };
+
+  const handleCompleteJob = async () => {
+    if (!selectedTicket || !completionNotes.trim() || !user) return;
+    try {
+      const progressData = {
+        currentStage: 'completed',
+        notes: completionNotes,
+        updatedBy: user
+      };
+      await updateProgress(selectedTicket.id, progressData);
+      await updateStatus(selectedTicket.id, 'completed');
+      setIsCompleteDialogOpen(false);
+      setCompletionNotes('');
+      setSelectedTicket(null);
+      await fetchTickets();
+    } catch (e) {
+      console.error('Failed to complete job:', e);
+    }
+  };
+
+  /**
+   * Get priority badge styling
+   */
+  const getPriorityBadge = (priority: string) => {
+    const styles: Record<string, string> = {
+      critical: 'bg-red-500',
+      high: 'bg-orange-500', 
+      medium: 'bg-yellow-500',
+      low: 'bg-blue-500'
+    };
+    return styles[priority] || 'bg-gray-500';
   };
 
   if (!user) return null;

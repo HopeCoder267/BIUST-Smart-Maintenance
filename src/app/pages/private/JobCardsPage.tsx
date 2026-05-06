@@ -558,6 +558,9 @@ export default function JobCardsPage() {
                 <ClipboardList className="w-5 h-5" />
                 Job Card Details - #{selectedJob.ticketNumber}
               </DialogTitle>
+              <DialogDescription>
+                View and manage job card details, progress, and assignments
+              </DialogDescription>
             </DialogHeader>
             
             <div className="space-y-6">

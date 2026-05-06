@@ -5,7 +5,7 @@
  * It provides the necessary providers for state management and data fetching.
  */
 
-import { RouterProvider } from 'react-router';
+import { RouterProvider } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from './components/ui/sonner';
 import { router } from './routes';
@@ -37,6 +37,7 @@ const queryClient = new QueryClient({
  * - Toaster: Provides toast notifications throughout the app
  */
 function App() {
+  console.log('App component rendering...');
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>

@@ -9,9 +9,10 @@
  * Keys are reset each semester and pre loaded from CSV imports.
  */
 
-import { useState } from 'react';
-import { useNavigate } from 'react-router';
-import { useAuthStore } from '../../store/authStore';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { usePublicAuthStore } from '../../store/publicAuthStore';
+import { useDataStore } from '../../store/dataStore';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
@@ -19,8 +20,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
 import { toast } from 'sonner';
 import { Building2, DoorOpen, Key, ArrowRight } from 'lucide-react';
-import { useDataStore } from '../../store/dataStore';
-import { useEffect } from 'react';
 
 /**
  * PublicLogin Component
@@ -29,15 +28,16 @@ import { useEffect } from 'react';
  * Students and staff log in using: Block → Room → Digital Key
  */
 export default function PublicLogin() {
+  console.log('PublicLogin component rendering...');
   const navigate = useNavigate();
-  const { loginPublic } = useAuthStore();
+  const { loginPublic } = usePublicAuthStore();
   const { blocks, fetchPublicBlocks, fetchPublicRooms } = useDataStore();
 
   const [rooms, setRooms] = useState<string[]>([]);
   const [isRoomsLoading, setIsRoomsLoading] = useState(false);
 
   useEffect(() => {
-    console.log('Fetching blocks for resident login...');
+    console.log('PublicLogin useEffect - Fetching public blocks...');
     fetchPublicBlocks();
   }, [fetchPublicBlocks]);
   

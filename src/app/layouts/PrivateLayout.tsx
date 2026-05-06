@@ -7,8 +7,8 @@
  * FEATURES: Navigation, Role-Based Access, Sidebar, Toolbar
  */
 
-import { Outlet, useNavigate, Link, useLocation } from 'react-router';
-import { useAuthStore } from '../store/authStore';
+import { Outlet, useNavigate, Link, useLocation } from 'react-router-dom';
+import { usePrivateAuthStore } from '../store/privateAuthStore';
 import { Button } from '../components/ui/button';
 import {
   Search, Bell, Settings, LogOut, User, ClipboardList, Package,
@@ -21,26 +21,26 @@ import { cn } from '../components/ui/utils';
 export default function PrivateLayout() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
-  const { user, isAuthenticated, isPublicSide, logout } = useAuthStore();
+  const { user, isAuthenticated, logout } = usePrivateAuthStore();
   
   /**
    * Security gate: Redirect unauthorized access to login.
    * Also handles intelligent dashboard routing on initial load.
    */
   useEffect(() => {
-    if (!isAuthenticated || isPublicSide) {
+    if (!isAuthenticated) {
       navigate('/private', { replace: true });
     } else if (pathname === '/dashboard') {
       const routes: Record<string, string> = {
         operator: '/dashboard/operator',
         technician: '/dashboard/technician',
-        campus_assistant: '/dashboard/assistant',
+        assistant: '/dashboard/assistant', // Fixed: was campus_assistant
         coordinator: '/dashboard/coordinator',
       };
       const target = routes[user?.role || ''] || '/private';
       navigate(target, { replace: true });
     }
-  }, [isAuthenticated, isPublicSide, navigate, pathname, user]);
+  }, [isAuthenticated, navigate, pathname, user]);
 
   const handleLogout = () => {
     logout();
@@ -55,7 +55,7 @@ export default function PrivateLayout() {
     if (!user) return [];
     
     const items = [
-      { label: 'Tickets', icon: ClipboardList, path: `/dashboard/${user.role === 'campus_assistant' ? 'assistant' : user.role}`, roles: ['operator', 'technician', 'campus_assistant', 'coordinator'] },
+      { label: 'Tickets', icon: ClipboardList, path: `/dashboard/${user.role}`, roles: ['operator', 'technician', 'assistant', 'coordinator'] },
       { label: 'Job Cards', icon: FileText, path: '/dashboard/job-cards', roles: ['technician', 'coordinator'] },
       { label: 'Inventory', icon: Package, path: '/dashboard/inventory', roles: ['operator', 'technician', 'coordinator'] },
       { label: 'Projects', icon: FolderKanban, path: '/dashboard/projects', roles: ['coordinator'] },
@@ -69,7 +69,7 @@ export default function PrivateLayout() {
     return items.filter(i => i.roles.includes(user.role));
   }, [user]);
 
-  if (!isAuthenticated || isPublicSide || !user) return null;
+  if (!isAuthenticated || !user) return null;
 
   return (
     <div className="h-screen flex flex-col bg-background">

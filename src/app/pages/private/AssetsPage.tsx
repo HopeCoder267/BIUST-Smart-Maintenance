@@ -43,28 +43,28 @@ export default function AssetsPage() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [selectedAsset, setSelectedAsset] = useState<any | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [selectedAsset, setSelectedAsset] = useState<any>(null);
-  const [editingAsset, setEditingAsset] = useState<any>(null);
+  const [editFormData, setEditFormData] = useState({});
   const [isLoading, setIsLoading] = useState(false);
   
   const [formData, setFormData] = useState({
-    asset_number: '',
+    assetNumber: '',
     name: '',
     description: '',
     category: 'equipment',
     status: 'operational',
     location: '',
-    purchase_date: '',
-    purchase_cost: 0,
-    current_value: 0,
-    warranty_expiry: '',
-    last_maintenance_date: '',
-    next_maintenance_date: '',
-    assigned_to: '',
+    purchaseDate: '',
+    purchaseCost: 0,
+    currentValue: 0,
+    warrantyExpiry: '',
+    lastMaintenanceDate: '',
+    nextMaintenanceDate: '',
+    assignedTo: '',
     model: '',
     manufacturer: '',
-    serial_number: '',
+    serialNumber: '',
     specifications: {}
   });
 
@@ -91,7 +91,7 @@ export default function AssetsPage() {
     if (query) {
       filtered = filtered.filter(asset =>
         asset.name.toLowerCase().includes(query.toLowerCase()) ||
-        asset.assetNumber || asset.asset_number.toLowerCase().includes(query.toLowerCase()) ||
+        asset.assetNumber?.toLowerCase().includes(query.toLowerCase()) ||
         asset.description.toLowerCase().includes(query.toLowerCase())
       );
     }
@@ -148,34 +148,37 @@ export default function AssetsPage() {
 
     const assetPayload = {
       ...formData,
-      asset_number: formData.asset_number || `AST-${Date.now().toString().slice(-6)}`,
-      purchase_date: formData.purchase_date || new Date().toISOString().split('T')[0],
-      current_value: parseFloat(formData.current_value.toString()) || parseFloat(formData.purchase_cost.toString()) || 0,
-      purchase_cost: parseFloat(formData.purchase_cost.toString()) || 0
+      assetNumber: formData.assetNumber || `AST-${Date.now().toString().slice(-6)}`,
+      purchaseDate: formData.purchaseDate || new Date().toISOString().split('T')[0],
+      currentValue: parseFloat(formData.currentValue.toString()) || parseFloat(formData.purchaseCost.toString()) || 0,
+      purchaseCost: parseFloat(formData.purchaseCost.toString()) || 0
     };
 
     const success = await addAsset(assetPayload);
     if (success) {
       setFormData({
-        asset_number: '',
+        assetNumber: '',
         name: '',
         description: '',
         category: 'equipment',
         status: 'operational',
         location: '',
-        purchase_date: '',
-        purchase_cost: 0,
-        current_value: 0,
-        warranty_expiry: '',
-        last_maintenance_date: '',
-        next_maintenance_date: '',
-        assigned_to: '',
+        purchaseDate: '',
+        purchaseCost: 0,
+        currentValue: 0,
+        warrantyExpiry: '',
+        lastMaintenanceDate: '',
+        nextMaintenanceDate: '',
+        assignedTo: '',
         model: '',
         manufacturer: '',
-        serial_number: '',
+        serialNumber: '',
         specifications: {}
       });
       setIsAddDialogOpen(false);
+      
+      // CRITICAL: Refresh assets to show new asset immediately
+      await fetchAssets();
     }
   };
 
@@ -264,8 +267,8 @@ export default function AssetsPage() {
                     <Input
                       id="purchaseCost"
                       type="number"
-                      value={formData.purchase_cost}
-                      onChange={(e) => setFormData(prev => ({ ...prev, purchase_cost: parseFloat(e.target.value) || 0 }))}
+                      value={formData.purchaseCost}
+                      onChange={(e) => setFormData(prev => ({ ...prev, purchaseCost: parseFloat(e.target.value) || 0 }))}
                       placeholder="e.g., 15000"
                       required
                     />
@@ -278,8 +281,8 @@ export default function AssetsPage() {
                     <Input
                       id="purchaseDate"
                       type="date"
-                      value={formData.purchase_date}
-                      onChange={(e) => setFormData(prev => ({ ...prev, purchase_date: e.target.value }))}
+                      value={formData.purchaseDate}
+                      onChange={(e) => setFormData(prev => ({ ...prev, purchaseDate: e.target.value }))}
                     />
                   </div>
                   
@@ -288,8 +291,8 @@ export default function AssetsPage() {
                     <Input
                       id="warrantyExpiry"
                       type="date"
-                      value={formData.warranty_expiry}
-                      onChange={(e) => setFormData(prev => ({ ...prev, warranty_expiry: e.target.value }))}
+                      value={formData.warrantyExpiry}
+                      onChange={(e) => setFormData(prev => ({ ...prev, warrantyExpiry: e.target.value }))}
                     />
                   </div>
                 </div>
@@ -319,8 +322,8 @@ export default function AssetsPage() {
                     <Label htmlFor="serialNumber">Serial Number</Label>
                     <Input
                       id="serialNumber"
-                      value={formData.serial_number || ''}
-                      onChange={(e) => setFormData(prev => ({ ...prev, serial_number: e.target.value }))}
+                      value={formData.serialNumber || ''}
+                      onChange={(e) => setFormData(prev => ({ ...prev, serialNumber: e.target.value }))}
                       placeholder="e.g., CT-2000X-12345"
                     />
                   </div>
@@ -328,7 +331,7 @@ export default function AssetsPage() {
                 
                 <div className="space-y-2">
                   <Label htmlFor="assignedTo">Assigned To</Label>
-                  <Select value={formData.assigned_to || 'unassigned'} onValueChange={(value: any) => setFormData(prev => ({ ...prev, assigned_to: value === 'unassigned' ? '' : value }))}>
+                  <Select value={formData.assignedTo || 'unassigned'} onValueChange={(value: any) => setFormData(prev => ({ ...prev, assignedTo: value === 'unassigned' ? '' : value }))}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select technician" />
                     </SelectTrigger>
@@ -418,7 +421,7 @@ export default function AssetsPage() {
               <div>
                 <p className="text-sm text-muted-foreground mb-1">Total Value</p>
                 <p className="text-3xl font-bold text-foreground">
-                  ${assets.reduce((sum, a) => sum + (a.currentValue || a.current_value), 0).toLocaleString()}
+                  ${assets.reduce((sum, a) => sum + (a.currentValue || 0), 0).toLocaleString()}
                 </p>
               </div>
               <div className="w-12 h-12 bg-purple-500/10 rounded-lg flex items-center justify-center">
@@ -516,7 +519,7 @@ export default function AssetsPage() {
                     <TableCell>
                       <div>
                         <p className="font-medium">{asset.name}</p>
-                        <p className="text-sm text-muted-foreground">{asset.assetNumber || asset.asset_number}</p>
+                        <p className="text-sm text-muted-foreground">{asset.assetNumber}</p>
                       </div>
                     </TableCell>
                     <TableCell>
@@ -542,9 +545,9 @@ export default function AssetsPage() {
                     </TableCell>
                     <TableCell>
                       <div>
-                        <p className="font-medium">${(asset.currentValue || asset.current_value).toLocaleString()}</p>
+                        <p className="font-medium">${asset.currentValue.toLocaleString()}</p>
                         <p className="text-xs text-muted-foreground">
-                          ${(asset.purchaseCost || asset.purchase_cost).toLocaleString()} purchase
+                          ${asset.purchaseCost.toLocaleString()} purchase
                         </p>
                       </div>
                     </TableCell>
@@ -564,8 +567,28 @@ export default function AssetsPage() {
                           <Eye className="w-4 h-4" />
                         </Button>
                         
-                        <Button variant="ghost" size="sm">
+                        <Button variant="ghost" size="sm" onClick={() => {
+                          setSelectedAsset(asset);
+                          setEditFormData(asset);
+                          setIsEditDialogOpen(true);
+                        }}>
                           <Edit className="w-4 h-4" />
+                        </Button>
+                        
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={async () => {
+                            if (confirm('Are you sure you want to delete this asset?')) {
+                              const success = await deleteAsset(asset.id);
+                              if (success) {
+                                toast.success('Asset deleted successfully');
+                                await fetchAssets();
+                              }
+                            }
+                          }}
+                        >
+                          <Trash2 className="w-4 h-4" />
                         </Button>
                       </div>
                     </TableCell>

@@ -5,7 +5,7 @@
  * It defines paths for both public and private sides of the system.
  */
 
-import { createBrowserRouter } from 'react-router';
+import { createBrowserRouter } from 'react-router-dom';
 
 // Public Side Pages
 import PublicLogin from './pages/public/PublicLogin';
