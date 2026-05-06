@@ -8,7 +8,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { useAuthStore } from '../store/authStore';
+import { usePublicAuthStore } from '../store/publicAuthStore';
 import { useDataStore } from '../store/dataStore';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
@@ -24,7 +24,7 @@ interface SatisfactionSurveyProps {
 }
 
 export default function SatisfactionSurvey({ ticket, isOpen, onClose }: SatisfactionSurveyProps) {
-  const { user } = useAuthStore();
+  const { user } = usePublicAuthStore();
   const { submitSatisfactionSurvey, satisfactionSurveys, fetchSatisfactionSurveys } = useDataStore();
   
   const [rating, setRating] = useState(0);

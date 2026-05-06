@@ -8,7 +8,7 @@
  */
 
 import { useState, useRef, useCallback } from 'react';
-import { useAuthStore } from '../store/authStore';
+import { usePublicAuthStore } from '../store/publicAuthStore';
 import { useDataStore } from '../store/dataStore';
 import { Card, CardContent } from './ui/card';
 import { Button } from './ui/button';
@@ -29,7 +29,7 @@ export default function FileUpload({
   maxFileSize = 10 * 1024 * 1024, // 10MB default
   allowedTypes = ['image/*', 'application/pdf', 'text/*', 'application/msword', 'application/vnd.openxmlformats-officedocument.*']
 }: FileUploadProps) {
-  const { user } = useAuthStore();
+  const { user } = usePublicAuthStore();
   const { uploadAttachment, deleteAttachment } = useDataStore();
   
   const [isDragging, setIsDragging] = useState(false);

@@ -8,7 +8,7 @@
  */
 
 import { useState, useEffect, useMemo } from 'react';
-import { useAuthStore } from '../../store/authStore';
+import { usePrivateAuthStore } from '../../store/privateAuthStore';
 import { useDataStore } from '../../store/dataStore';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -29,7 +29,7 @@ import { format, subDays, subMonths, startOfMonth, endOfMonth } from 'date-fns';
 import { User as UserType } from '../../types';
 
 export default function AnalyticsPage() {
-  const { user } = useAuthStore();
+  const { user } = usePrivateAuthStore();
   const { tickets, users, blocks, fetchTickets, fetchUsers, fetchBlocks } = useDataStore();
   
   const [timeRange, setTimeRange] = useState<'7d' | '30d' | '90d' | '1y'>('30d');
