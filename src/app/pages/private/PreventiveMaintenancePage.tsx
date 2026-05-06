@@ -8,7 +8,7 @@
  */
 
 import { useState, useEffect, useMemo } from 'react';
-import { useAuthStore } from '../../store/authStore';
+import { usePrivateAuthStore } from '../../store/privateAuthStore';
 import { useDataStore } from '../../store/dataStore';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -24,7 +24,7 @@ import { format, addDays, addWeeks, addMonths, isAfter, isBefore, startOfDay } f
 import { PreventiveMaintenanceSchedule, User } from '../../types';
 
 export default function PreventiveMaintenancePage() {
-  const { user } = useAuthStore();
+  const { user } = usePrivateAuthStore();
   const { 
     preventiveMaintenance, 
     users, 

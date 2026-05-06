@@ -8,7 +8,7 @@
  */
 
 import { useState, useEffect, useMemo } from 'react';
-import { useAuthStore } from '../../store/authStore';
+import { usePrivateAuthStore } from '../../store/privateAuthStore';
 import { useDataStore } from '../../store/dataStore';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -29,7 +29,7 @@ import { format } from 'date-fns';
 import { Ticket, User as UserType } from '../../types';
 
 export default function JobCardsPage() {
-  const { user } = useAuthStore();
+  const { user } = usePrivateAuthStore();
   const { tickets, users, fetchTickets, fetchUsers, updateTicket, addTicket } = useDataStore();
   
   const [searchQuery, setSearchQuery] = useState('');
@@ -95,7 +95,7 @@ export default function JobCardsPage() {
   const getStatusBadge = (status: string) => {
     const styles: Record<string, string> = {
       open: 'bg-blue-100 text-blue-700',
-      in_progress: 'bg-amber-100 text-amber-700',
+      inProgress: 'bg-amber-100 text-amber-700',
       completed: 'bg-green-100 text-green-700',
       closed: 'bg-slate-100 text-slate-700'
     };
@@ -115,8 +115,12 @@ export default function JobCardsPage() {
 
   // Handle creating new job card
   const handleCreateJobCard = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
+    // Check if user is allowed to create tickets
+    if (user?.role === 'coordinator') {
+      toast.error('Coordinators cannot create tickets. They can only view statistics and manage existing tickets.');
+      return;
+    }
+
     if (!formData.title || !formData.description || !formData.category) {
       toast.error('Please fill in all required fields');
       return;
@@ -134,7 +138,7 @@ export default function JobCardsPage() {
         block: formData.block,
         room: formData.room,
         submittedBy: user!,
-        currentStage: 'report_submitted',
+        currentStage: 'reportSubmitted',
         progressHistory: []
       });
 
@@ -197,14 +201,15 @@ export default function JobCardsPage() {
         </div>
         
         <div className="flex gap-3">
-          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="gap-2">
-                <Plus className="w-4 h-4" />
-                Create Job Card
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl">
+          {user?.role !== 'coordinator' && (
+            <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+              <DialogTrigger asChild>
+                <Button className="gap-2">
+                  <Plus className="w-4 h-4" />
+                  Create Job Card
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl">
               <DialogHeader>
                 <DialogTitle>Create New Job Card</DialogTitle>
                 <DialogDescription>
@@ -392,7 +397,7 @@ export default function JobCardsPage() {
               <SelectContent>
                 <SelectItem value="all">All Status</SelectItem>
                 <SelectItem value="open">Open</SelectItem>
-                <SelectItem value="in_progress">In Progress</SelectItem>
+                <SelectItem value="inProgress">In Progress</SelectItem>
                 <SelectItem value="completed">Completed</SelectItem>
                 <SelectItem value="closed">Closed</SelectItem>
               </SelectContent>
@@ -524,13 +529,13 @@ export default function JobCardsPage() {
                           <Button 
                             variant="ghost" 
                             size="sm"
-                            onClick={() => handleStatusUpdate(job.id, 'in_progress')}
+                            onClick={() => handleStatusUpdate(job.id, 'inProgress')}
                           >
                             <Wrench className="w-4 h-4" />
                           </Button>
                         )}
                         
-                        {user?.role === 'technician' && job.status === 'in_progress' && (
+                        {user?.role === 'technician' && job.status === 'inProgress' && (
                           <Button 
                             variant="ghost" 
                             size="sm"

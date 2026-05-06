@@ -15,12 +15,12 @@ import { Badge } from '../../components/ui/badge';
 import { toast } from 'sonner';
 import { Plus, AlertCircle, Building2, Bell, ShieldAlert } from 'lucide-react';
 import { useDataStore } from '../../store/dataStore';
-import { useAuthStore } from '../../store/authStore';
+import { usePrivateAuthStore } from '../../store/privateAuthStore';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 
 export default function CampusAssistantDashboard() {
   const { tickets, addNotification, blocks, fetchTickets, fetchBlocks, fetchNotifications } = useDataStore();
-  const { user } = useAuthStore();
+  const { user } = usePrivateAuthStore();
   const [isReportDialogOpen, setIsReportDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -46,7 +46,7 @@ export default function CampusAssistantDashboard() {
   });
   
   // Get all open tickets (campus assistants can see all open tickets)
-  const openTickets = tickets.filter(t => t.status === 'open' || t.status === 'in_progress');
+  const openTickets = tickets.filter(t => t.status === 'open' || t.status === 'inProgress');
   
   /**
    * Handle campus-wide report submission

@@ -8,7 +8,7 @@
  */
 
 import { useState, useEffect, useMemo } from 'react';
-import { useAuthStore } from '../../store/authStore';
+import { usePrivateAuthStore } from '../../store/privateAuthStore';
 import { useDataStore } from '../../store/dataStore';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Badge } from '../../components/ui/badge';
@@ -23,12 +23,12 @@ import ProgressTimeline from '../../components/ProgressTimeline';
 import { Ticket, ProgressStage } from '../../types';
 
 export default function TechnicianDashboard() {
-  const { user } = useAuthStore();
+  const { user } = usePrivateAuthStore();
   const { tickets, fetchTickets, updateProgress, updateStatus } = useDataStore();
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [isUpdateDialogOpen, setIsUpdateDialogOpen] = useState(false);
   const [isCompleteDialogOpen, setIsCompleteDialogOpen] = useState(false);
-  const [selectedStage, setSelectedStage] = useState<ProgressStage>('work_in_progress');
+  const [selectedStage, setSelectedStage] = useState<ProgressStage>('workInProgress');
   const [updateNotes, setUpdateNotes] = useState('');
   const [completionNotes, setCompletionNotes] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -49,11 +49,12 @@ export default function TechnicianDashboard() {
   const handleUpdateProgress = async () => {
     if (!selectedTicket || !updateNotes.trim() || !user) return;
     try {
-      const progressData = {
-        currentStage: selectedStage,
+      const progressData = [{
+        stage: selectedStage,
+        timestamp: new Date(),
         notes: updateNotes,
         updatedBy: user
-      };
+      }];
       await updateProgress(selectedTicket.id, progressData);
       setIsUpdateDialogOpen(false);
       setUpdateNotes('');
@@ -67,11 +68,12 @@ export default function TechnicianDashboard() {
   const handleCompleteJob = async () => {
     if (!selectedTicket || !completionNotes.trim() || !user) return;
     try {
-      const progressData = {
-        currentStage: 'completed',
+      const progressData = [{
+        stage: 'completed',
+        timestamp: new Date(),
         notes: completionNotes,
         updatedBy: user
-      };
+      }];
       await updateProgress(selectedTicket.id, progressData);
       await updateStatus(selectedTicket.id, 'completed');
       setIsCompleteDialogOpen(false);
@@ -286,7 +288,7 @@ export default function TechnicianDashboard() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="bg-white border-border text-foreground">
-                    <SelectItem value="work_in_progress">Work in Progress</SelectItem>
+                    <SelectItem value="workInProgress">Work in Progress</SelectItem>
                     <SelectItem value="awaiting_parts">Awaiting Parts</SelectItem>
                     <SelectItem value="quality_check">Quality Check</SelectItem>
                     <SelectItem value="resident_confirmation">Resident Confirmation</SelectItem>

@@ -29,6 +29,7 @@ import SuppliersPage from './pages/private/SuppliersPage';
 import AnalyticsPage from './pages/private/AnalyticsPage';
 import NotFound from './pages/NotFound';
 import ErrorBoundary from './components/ErrorBoundary';
+import ProtectedRoute from './components/ProtectedRoute';
 
 // Layout Components
 import PublicLayout from './layouts/PublicLayout';
@@ -59,11 +60,19 @@ export const router = createBrowserRouter([
     children: [
       {
         index: true,
-        element: <ResidentDashboard />,
+        element: (
+          <ProtectedRoute requiredAuth="public">
+            <ResidentDashboard />
+          </ProtectedRoute>
+        ),
       },
       {
         path: 'ticket/:ticketId',
-        element: <TicketDetails />,
+        element: (
+          <ProtectedRoute requiredAuth="public">
+            <TicketDetails />
+          </ProtectedRoute>
+        ),
       },
     ],
   },
@@ -84,57 +93,109 @@ export const router = createBrowserRouter([
       // Role-specific dashboards
       {
         path: 'operator',
-        element: <OperatorDashboard />,
+        element: (
+          <ProtectedRoute roles={['operator']}>
+            <OperatorDashboard />
+          </ProtectedRoute>
+        ),
       },
       {
         path: 'technician',
-        element: <TechnicianDashboard />,
+        element: (
+          <ProtectedRoute roles={['technician']}>
+            <TechnicianDashboard />
+          </ProtectedRoute>
+        ),
       },
       {
         path: 'assistant',
-        element: <CampusAssistantDashboard />,
+        element: (
+          <ProtectedRoute roles={['campus_assistant']}>
+            <CampusAssistantDashboard />
+          </ProtectedRoute>
+        ),
       },
       {
         path: 'coordinator',
-        element: <CoordinatorDashboard />,
+        element: (
+          <ProtectedRoute roles={['coordinator']}>
+            <CoordinatorDashboard />
+          </ProtectedRoute>
+        ),
       },
       
       // Shared pages (accessible based on role permissions)
       {
         path: 'finance',
-        element: <FinanceDashboard />,
+        element: (
+          <ProtectedRoute roles={['coordinator']}>
+            <FinanceDashboard />
+          </ProtectedRoute>
+        ),
       },
       {
         path: 'inventory',
-        element: <InventoryPage />,
+        element: (
+          <ProtectedRoute roles={['technician', 'coordinator']}>
+            <InventoryPage />
+          </ProtectedRoute>
+        ),
       },
       {
         path: 'blocks',
-        element: <BlockManagement />,
+        element: (
+          <ProtectedRoute roles={['coordinator']}>
+            <BlockManagement />
+          </ProtectedRoute>
+        ),
       },
       {
         path: 'preventive-maintenance',
-        element: <PreventiveMaintenancePage />,
+        element: (
+          <ProtectedRoute roles={['coordinator', 'operator']}>
+            <PreventiveMaintenancePage />
+          </ProtectedRoute>
+        ),
       },
       {
         path: 'job-cards',
-        element: <JobCardsPage />,
+        element: (
+          <ProtectedRoute roles={['technician', 'coordinator']}>
+            <JobCardsPage />
+          </ProtectedRoute>
+        ),
       },
       {
         path: 'projects',
-        element: <ProjectsPage />,
+        element: (
+          <ProtectedRoute roles={['coordinator']}>
+            <ProjectsPage />
+          </ProtectedRoute>
+        ),
       },
       {
         path: 'assets',
-        element: <AssetsPage />,
+        element: (
+          <ProtectedRoute roles={['coordinator']}>
+            <AssetsPage />
+          </ProtectedRoute>
+        ),
       },
       {
         path: 'suppliers',
-        element: <SuppliersPage />,
+        element: (
+          <ProtectedRoute roles={['coordinator']}>
+            <SuppliersPage />
+          </ProtectedRoute>
+        ),
       },
       {
         path: 'analytics',
-        element: <AnalyticsPage />,
+        element: (
+          <ProtectedRoute roles={['operator', 'coordinator']}>
+            <AnalyticsPage />
+          </ProtectedRoute>
+        ),
       },
     ],
   },

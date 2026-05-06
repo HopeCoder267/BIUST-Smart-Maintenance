@@ -6,7 +6,7 @@
  */
 
 import { useState, useEffect, useMemo } from 'react';
-import { useAuthStore } from '../../store/authStore';
+import { usePrivateAuthStore } from '../../store/privateAuthStore';
 import { useDataStore } from '../../store/dataStore';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -51,7 +51,7 @@ import {
 import { format } from 'date-fns';
 
 export default function ProjectsPage() {
-  const { user } = useAuthStore();
+  const { user } = usePrivateAuthStore();
   const { 
     projects, 
     users, // Destructured missing users array
@@ -125,7 +125,7 @@ export default function ProjectsPage() {
   const getStatusBadge = (status: string) => {
     const styles: Record<string, string> = {
       planning: 'bg-blue-100 text-blue-700',
-      in_progress: 'bg-amber-100 text-amber-700',
+      inProgress: 'bg-amber-100 text-amber-700',
       completed: 'bg-green-100 text-green-700',
       cancelled: 'bg-red-100 text-red-700'
     };
@@ -360,7 +360,7 @@ export default function ProjectsPage() {
         </CardContent></Card>
         <Card><CardContent className="p-6">
           <div className="flex items-center justify-between">
-            <div><p className="text-sm text-muted-foreground">In Progress</p><p className="text-3xl font-bold">{projects.filter(p => p.status === 'in_progress').length}</p></div>
+            <div><p className="text-sm text-muted-foreground">In Progress</p><p className="text-3xl font-bold">{projects.filter(p => p.status === 'inProgress').length}</p></div>
             <div className="w-12 h-12 bg-amber-500/10 rounded-lg flex items-center justify-center"><Clock className="w-6 h-6 text-amber-500" /></div>
           </div>
         </CardContent></Card>
@@ -389,7 +389,7 @@ export default function ProjectsPage() {
           <SelectContent>
             <SelectItem value="all">All Status</SelectItem>
             <SelectItem value="planning">Planning</SelectItem>
-            <SelectItem value="in_progress">In Progress</SelectItem>
+            <SelectItem value="inProgress">In Progress</SelectItem>
             <SelectItem value="completed">Completed</SelectItem>
           </SelectContent>
         </Select>

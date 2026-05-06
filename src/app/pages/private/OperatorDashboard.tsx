@@ -63,7 +63,7 @@ export default function OperatorDashboard() {
   };
 
   const statusStyles: Record<string, string> = {
-    open: 'bg-blue-100 text-blue-700', in_progress: 'bg-amber-100 text-amber-700', completed: 'bg-emerald-100 text-emerald-700', closed: 'bg-slate-100 text-slate-700'
+    open: 'bg-blue-100 text-blue-700', inProgress: 'bg-amber-100 text-amber-700', completed: 'bg-emerald-100 text-emerald-700', closed: 'bg-slate-100 text-slate-700'
   };
 
   /**
@@ -85,7 +85,7 @@ export default function OperatorDashboard() {
   const getStatusBadge = (status: string) => {
     const styles: Record<string, string> = {
       open: 'bg-blue-100 text-blue-700',
-      in_progress: 'bg-amber-100 text-amber-700', 
+      inProgress: 'bg-amber-100 text-amber-700', 
       completed: 'bg-emerald-100 text-emerald-700',
       closed: 'bg-slate-100 text-slate-700'
     };
@@ -240,7 +240,7 @@ export default function OperatorDashboard() {
                 <SelectContent>
                   <SelectItem value="all">All Status</SelectItem>
                   <SelectItem value="open">Open</SelectItem>
-                  <SelectItem value="in_progress">In Progress</SelectItem>
+                  <SelectItem value="inProgress">In Progress</SelectItem>
                   <SelectItem value="completed">Completed</SelectItem>
                 </SelectContent>
               </Select>

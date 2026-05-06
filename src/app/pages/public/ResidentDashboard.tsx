@@ -152,7 +152,7 @@ export default function ResidentDashboard() {
     
     return userTickets.find(ticket => {
       // Only check open or in-progress tickets
-      if (ticket.status !== 'open' && ticket.status !== 'in_progress') return false;
+      if (ticket.status !== 'open' && ticket.status !== 'inProgress') return false;
       
       // Category match is required for "smart" duplication check
       if (ticket.category !== category) return false;
@@ -202,9 +202,9 @@ export default function ResidentDashboard() {
         status: 'open',
         priority: newTicket.priority,
         category: newTicket.category,
-        currentStage: 'report_submitted' as const,
+        currentStage: 'reportSubmitted' as const,
         progressHistory: [{
-          stage: 'report_submitted' as const,
+          stage: 'reportSubmitted' as const,
           timestamp: new Date(),
           updatedBy: user,
           notes: 'Initial ticket submitted by resident'
@@ -271,7 +271,7 @@ export default function ResidentDashboard() {
     switch (status) {
       case 'open':
         return 'default';
-      case 'in_progress':
+      case 'inProgress':
         return 'secondary';
       case 'completed':
         return 'outline';
@@ -286,7 +286,7 @@ export default function ResidentDashboard() {
   const stats = {
     total: userTickets.length,
     open: userTickets.filter((t) => t.status === 'open').length,
-    inProgress: userTickets.filter((t) => t.status === 'in_progress').length,
+    inProgress: userTickets.filter((t) => t.status === 'inProgress').length,
     completed: userTickets.filter((t) => t.status === 'completed').length,
   };
   

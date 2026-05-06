@@ -7,7 +7,7 @@
 
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuthStore } from '../../store/authStore';
+import { usePrivateAuthStore } from '../../store/privateAuthStore';
 import { useDataStore } from '../../store/dataStore';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -20,7 +20,7 @@ import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, R
 
 export default function FinanceDashboard() {
   const navigate = useNavigate();
-  const { isFinanceUnlocked: unlocked, unlockFinance, lockFinance, hasRole } = useAuthStore();
+  const { isFinanceUnlocked: unlocked, unlockFinance, lockFinance, hasRole } = usePrivateAuthStore();
   const { budget, fetchBudget } = useDataStore();
   const [pin, setPin] = useState('');
 
@@ -34,9 +34,10 @@ export default function FinanceDashboard() {
     fetchBudget();
   }, [hasRole, navigate, fetchBudget]);
 
-  const handlePinSubmit = (e: React.FormEvent) => {
+  const handlePinSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (unlockFinance(pin)) {
+    const success = await unlockFinance(pin);
+    if (success) {
       toast.success('Financial Vault Unlocked');
       setPin('');
     } else {

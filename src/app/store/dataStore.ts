@@ -18,6 +18,7 @@ import {
   query,
   where,
   addDoc,
+  arrayUnion,
   writeBatch,
   updateDoc,
   deleteDoc,
@@ -27,7 +28,6 @@ import {
   increment,
   orderBy,
   limit,
-  arrayUnion,
   arrayRemove
 } from 'firebase/firestore';
 import {
@@ -184,7 +184,7 @@ export const useDataStore = create<DataState>()(
           const querySnapshot = await getDocs(roomsQuery);
           const rooms = querySnapshot.docs.map(doc => ({
             id: doc.id,
-            ...doc.data()
+            ...doc.data() as any
           }));
           set({ rooms: rooms as any[], isLoading: false });
         } catch (error: any) {
@@ -554,7 +554,7 @@ export const useDataStore = create<DataState>()(
             title: sanitizedTitle,
             description: sanitizedDescription,
             status: 'open',
-            currentStage: 'report_submitted',
+            currentStage: 'reportSubmitted',
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp()
           });
@@ -666,7 +666,7 @@ export const useDataStore = create<DataState>()(
         try {
           const ticketRef = doc(db, 'tickets', ticketId);
           await updateDoc(ticketRef, {
-            progress,
+            progress: arrayUnion(progress),
             updatedAt: serverTimestamp()
           });
           toast.success('Progress updated successfully');
@@ -792,7 +792,7 @@ export const useDataStore = create<DataState>()(
           const analytics = {
             totalTickets: get().tickets.length,
             openTickets: get().tickets.filter(t => t.status === 'open').length,
-            inProgressTickets: get().tickets.filter(t => t.status === 'in-progress').length,
+            inProgressTickets: get().tickets.filter(t => t.status === 'inProgress').length,
             completedTickets: get().tickets.filter(t => t.status === 'completed').length,
             avgResponseTime: '2.5 hours',
             avgResolutionTime: '24 hours'

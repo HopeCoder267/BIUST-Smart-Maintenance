@@ -22,14 +22,12 @@
     "declarationMap": false,
     "sourceMap": true,
     "outDir": "./dist",
-    "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]
     }
   },
   "include": [
-    "src/**/*",
-    "vite.config.ts"
+    "src/**/*"
   ],
   "exclude": [
     "node_modules",

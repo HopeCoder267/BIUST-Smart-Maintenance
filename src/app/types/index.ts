@@ -26,6 +26,7 @@ export type UserRole = 'student' | 'staff' | 'campus_assistant' | 'operator' | '
 export interface User {
   id: string;
   name: string;
+  displayName?: string; // Firebase auth display name
   role: UserRole;
   studentId?: string;  // For students
   omang?: string;      // National ID
@@ -53,13 +54,13 @@ export interface PublicAuthData {
  * These stages represent the complete lifecycle of a maintenance ticket
  */
 export type ProgressStage = 
-  | 'report_submitted'      // Stage 1: Initial submission by resident
-  | 'operator_review'       // Stage 2: Operator reviews the ticket
-  | 'sourcing_funds'        // Stage 3: Finance team sources required funds
-  | 'sourcing_materials'    // Stage 4: Procurement of materials
-  | 'technician_assigned'   // Stage 5: Technician assigned to the job
-  | 'scheduled_visit'       // Stage 6: Visit scheduled with resident
-  | 'work_in_progress'      // Stage 7: Work is being performed
+  | 'reportSubmitted'       // Stage 1: Initial submission by resident
+  | 'operatorReview'        // Stage 2: Operator reviews the ticket
+  | 'sourcingFunds'         // Stage 3: Finance team sources required funds
+  | 'sourcingMaterials'     // Stage 4: Procurement of materials
+  | 'technicianAssigned'    // Stage 5: Technician assigned to the job
+  | 'scheduledVisit'        // Stage 6: Visit scheduled with resident
+  | 'workInProgress'        // Stage 7: Work is being performed
   | 'completed'             // Stage 8: Work completed by technician
   | 'closed';               // Stage 9: Ticket closed after verification
 
@@ -71,7 +72,7 @@ export type TicketPriority = 'low' | 'medium' | 'high' | 'critical';
 /**
  * Ticket status for quick filtering
  */
-export type TicketStatus = 'open' | 'in_progress' | 'completed' | 'closed';
+export type TicketStatus = 'open' | 'inProgress' | 'completed' | 'closed';
 
 /**
  * Ticket category types
@@ -177,7 +178,7 @@ export interface JobCard {
   residentSignature?: string;     // Digital signature
   technicianSignature?: string;
   
-  status: 'pending' | 'scheduled' | 'in_progress' | 'completed';
+  status: 'pending' | 'scheduled' | 'inProgress' | 'completed';
   createdAt: Date;
   completedAt?: Date;
 }
@@ -320,7 +321,7 @@ export interface Project {
   completionPercentage: number;
   progress: number;
   
-  status: 'planning' | 'in_progress' | 'completed' | 'on_hold';
+  status: 'planning' | 'inProgress' | 'completed' | 'onHold';
   priority: TicketPriority;
   
   // Associated data
@@ -388,6 +389,7 @@ export interface Supplier {
 export interface Block {
   id: string;
   name: string;
+  description?: string;            // Optional description
   totalRooms: number;
   capacity: number;
   totalResidents: number;
@@ -666,7 +668,7 @@ export interface FileAttachment {
 /**
  * Project management types
  */
-export type ProjectStatus = 'planning' | 'in_progress' | 'completed' | 'cancelled';
+export type ProjectStatus = 'planning' | 'inProgress' | 'completed' | 'cancelled';
 
 export interface ProjectTask {
   id: string;
