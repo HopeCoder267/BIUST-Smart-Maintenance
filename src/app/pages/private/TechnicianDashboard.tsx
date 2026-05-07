@@ -16,15 +16,17 @@ import { Button } from '../../components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../../components/ui/dialog';
 import { Label } from '../../components/ui/label';
 import { Textarea } from '../../components/ui/textarea';
+import { Input } from '../../components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
-import { Wrench, Calendar, Clock, CheckCircle2, MapPin, FileText, Plus, User as UserIcon } from 'lucide-react';
+import { ScrollArea } from '../../components/ui/scroll-area';
+import { Wrench, Calendar, Clock, CheckCircle2, MapPin, FileText, Plus, User as UserIcon, Package, Minus, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
 import ProgressTimeline from '../../components/ProgressTimeline';
 import { Ticket, ProgressStage } from '../../types';
 
 export default function TechnicianDashboard() {
   const { user } = usePrivateAuthStore();
-  const { tickets, fetchTickets, updateProgress, updateStatus } = useDataStore();
+  const { tickets, fetchTickets, updateProgress, updateStatus, fetchInventory, consumeInventory, inventory } = useDataStore();
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   
   // Safe date formatting function
@@ -41,19 +43,21 @@ export default function TechnicianDashboard() {
   };
   const [isUpdateDialogOpen, setIsUpdateDialogOpen] = useState(false);
   const [isCompleteDialogOpen, setIsCompleteDialogOpen] = useState(false);
+  const [isInventoryDialogOpen, setIsInventoryDialogOpen] = useState(false);
   const [selectedStage, setSelectedStage] = useState<ProgressStage>('workInProgress');
   const [updateNotes, setUpdateNotes] = useState('');
   const [completionNotes, setCompletionNotes] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [inventoryUsage, setInventoryUsage] = useState<Record<string, number>>({});
 
   useEffect(() => { 
     const load = async () => {
         setIsLoading(true);
-        await fetchTickets();
+        await Promise.all([fetchTickets(), fetchInventory()]);
         setIsLoading(false);
     };
     load();
-  }, [fetchTickets]);
+  }, [fetchTickets, fetchInventory]);
   
   const assigned = useMemo(() => tickets.filter(t => t.assignedTo?.id === user?.id), [tickets, user]);
   const activeTickets = useMemo(() => assigned.filter(t => t.status !== 'completed' && t.status !== 'closed'), [assigned]);
@@ -76,6 +80,28 @@ export default function TechnicianDashboard() {
     } catch (e) {
       console.error('Failed to update progress:', e);
     }
+  };
+
+  const handleUseInventoryItem = async (inventoryId: string) => {
+    const quantityToUse = inventoryUsage[inventoryId] || 0;
+    if (quantityToUse <= 0) return;
+    
+    try {
+      const success = await consumeInventory(inventoryId, quantityToUse);
+      if (success) {
+        // Reset the quantity for this item after successful usage
+        setInventoryUsage(prev => ({ ...prev, [inventoryId]: 0 }));
+        // Refresh inventory to show updated quantities
+        await fetchInventory();
+      }
+    } catch (error) {
+      console.error('Failed to use inventory item:', error);
+    }
+  };
+
+  const handleUpdateInventoryQuantity = (inventoryId: string, quantity: number) => {
+    if (quantity < 0) return;
+    setInventoryUsage(prev => ({ ...prev, [inventoryId]: quantity }));
   };
 
   const handleCompleteJob = async () => {
@@ -241,6 +267,18 @@ export default function TechnicianDashboard() {
                         >
                           <FileText className="w-4 h-4" />
                           Update Progress
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          className="gap-2 border-border text-foreground hover:bg-muted"
+                          onClick={() => {
+                            setSelectedTicket(ticket);
+                            setIsInventoryDialogOpen(true);
+                          }}
+                        >
+                          <Package className="w-4 h-4" />
+                          Use Inventory
                         </Button>
                         <Button 
                           size="sm" 
@@ -413,6 +451,229 @@ export default function TechnicianDashboard() {
                 >
                   <CheckCircle2 className="w-4 h-4 mr-2" />
                   Mark as Complete
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+      
+      {/* Inventory Usage Dialog */}
+      <Dialog open={isInventoryDialogOpen} onOpenChange={setIsInventoryDialogOpen}>
+        <DialogContent className="bg-white border-border text-foreground max-w-4xl max-h-[85vh]">
+          <DialogHeader className="pb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
+                <Package className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <DialogTitle className="text-xl font-semibold">Use Inventory Items</DialogTitle>
+                <DialogDescription className="text-muted-foreground text-sm">
+                  Select materials and quantities needed for this job
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+          
+          {selectedTicket && (
+            <div className="space-y-6 mt-2 text-foreground">
+              {/* Ticket Info Card */}
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-semibold text-blue-900 mb-1">{selectedTicket.title}</h3>
+                    <div className="flex items-center gap-3 text-sm text-blue-700">
+                      <span className="flex items-center gap-1">
+                        <MapPin className="w-3 h-3" />
+                        {selectedTicket.block} • Room {selectedTicket.room}
+                      </span>
+                      <span>•</span>
+                      <span>{selectedTicket.ticketNumber}</span>
+                    </div>
+                  </div>
+                  <div className="bg-blue-100 px-3 py-1 rounded-full">
+                    <span className="text-xs font-medium text-blue-800">
+                      {selectedTicket.priority?.toUpperCase() || 'NORMAL'} PRIORITY
+                    </span>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Inventory Items Section */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="text-foreground font-medium text-base flex items-center gap-2">
+                    <Package className="w-4 h-4 text-primary" />
+                    Available Inventory Items
+                  </Label>
+                  <div className="text-sm text-muted-foreground">
+                    {Array.isArray(inventory) ? `${inventory.length} items available` : 'Loading...'}
+                  </div>
+                </div>
+                
+                <ScrollArea className="h-[450px] border border-border/50 rounded-xl bg-gray-50/50">
+                  <div className="p-4 space-y-3">
+                    {Array.isArray(inventory) && inventory.length > 0 ? (
+                      inventory.map((item) => {
+                        const currentUsage = inventoryUsage[item.id] || 0;
+                        const isOutOfStock = item.quantity === 0;
+                        const isLowStock = item.quantity <= item.minThreshold && item.quantity > 0;
+                        
+                        return (
+                          <Card key={item.id} className={`
+                            bg-white border rounded-lg transition-all hover:shadow-md
+                            ${isOutOfStock ? 'opacity-60 border-gray-200' : 'border-border hover:border-primary/30'}
+                          `}>
+                            <CardContent className="p-4">
+                              <div className="flex items-start justify-between gap-4">
+                                {/* Item Details */}
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 mb-3">
+                                    <h4 className="font-semibold text-foreground truncate">{item.name}</h4>
+                                    <Badge variant="outline" className="text-xs border-border/50 bg-gray-50">
+                                      {item.category.replace('_', ' ')}
+                                    </Badge>
+                                  </div>
+                                  
+                                  <div className="grid grid-cols-2 gap-3 mb-3">
+                                    <div className="flex items-center gap-2">
+                                      <div className={`w-2 h-2 rounded-full ${
+                                        item.status === 'in_stock' ? 'bg-green-500' :
+                                        item.status === 'low_stock' ? 'bg-amber-500' :
+                                        'bg-red-500'
+                                      }`} />
+                                      <span className="text-sm font-medium">
+                                        {item.quantity} {item.unit}
+                                      </span>
+                                      <span className="text-xs text-muted-foreground">available</span>
+                                    </div>
+                                    <div className="text-sm text-muted-foreground">
+                                      Min: {item.minThreshold} {item.unit}
+                                    </div>
+                                  </div>
+                                  
+                                  <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                                    <span className="flex items-center gap-1">
+                                      <span className="font-medium">P{item.unitPrice || 0}</span>
+                                      per {item.unit}
+                                    </span>
+                                    <span className="flex items-center gap-1">
+                                      <Package className="w-3 h-3" />
+                                      {item.location || 'Main Store'}
+                                    </span>
+                                    {isLowStock && (
+                                      <span className="text-amber-600 font-medium flex items-center gap-1">
+                                        <AlertTriangle className="w-3 h-3" />
+                                        Low Stock
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                                
+                                {/* Usage Controls */}
+                                <div className="flex flex-col items-end gap-3 min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    <div className="flex flex-col items-end">
+                                      <Label htmlFor={`quantity-${item.id}`} className="text-xs text-muted-foreground mb-1">
+                                        Quantity to Use
+                                      </Label>
+                                      <div className="flex items-center gap-1">
+                                        <Input
+                                          id={`quantity-${item.id}`}
+                                          type="number"
+                                          min="0"
+                                          max={item.quantity}
+                                          value={currentUsage || ''}
+                                          onChange={(e) => handleUpdateInventoryQuantity(item.id, parseInt(e.target.value) || 0)}
+                                          className="w-20 h-9 text-sm text-center border-border/50"
+                                          placeholder="0"
+                                          disabled={isOutOfStock}
+                                        />
+                                        <span className="text-xs text-muted-foreground font-medium">
+                                          {item.unit}
+                                        </span>
+                                      </div>
+                                      {currentUsage > 0 && (
+                                        <p className="text-xs text-primary font-medium mt-1">
+                                          Will use {currentUsage} of {item.quantity}
+                                        </p>
+                                      )}
+                                    </div>
+                                  </div>
+                                  
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleUseInventoryItem(item.id)}
+                                    disabled={!currentUsage || currentUsage <= 0 || currentUsage > item.quantity || isOutOfStock}
+                                    className={`
+                                      h-9 px-4 text-xs font-medium transition-all
+                                      ${isOutOfStock 
+                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                                        : 'bg-primary text-white hover:bg-primary/90 active:scale-95'
+                                      }
+                                    `}
+                                  >
+                                    {isOutOfStock ? (
+                                      <>
+                                        <Minus className="w-3 h-3 mr-1" />
+                                        Out of Stock
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Package className="w-3 h-3 mr-1" />
+                                        Use Item
+                                      </>
+                                    )}
+                                  </Button>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        );
+                      })
+                    ) : (
+                      <div className="text-center py-12">
+                        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                          <Package className="w-8 h-8 text-gray-400" />
+                        </div>
+                        <h3 className="text-lg font-semibold text-foreground mb-2">No Inventory Available</h3>
+                        <p className="text-muted-foreground mb-4">
+                          Please add items to inventory first before using them for jobs
+                        </p>
+                        <Button 
+                          variant="outline" 
+                          className="border-border/50"
+                          onClick={() => window.open('/private/coordinator', '_blank')}
+                        >
+                          Go to Inventory Management
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </ScrollArea>
+              </div>
+              
+              {/* Action Buttons */}
+              <div className="flex gap-3 pt-4 border-t border-border/50">
+                <Button
+                  variant="outline"
+                  className="flex-1 border-border/50 text-foreground hover:bg-muted/50 h-11"
+                  onClick={() => {
+                    setIsInventoryDialogOpen(false);
+                    setInventoryUsage({});
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  className="flex-1 bg-primary text-white hover:bg-primary/90 h-11 font-medium"
+                  onClick={() => {
+                    setIsInventoryDialogOpen(false);
+                    // Open update progress dialog after using inventory
+                    setIsUpdateDialogOpen(true);
+                  }}
+                >
+                  Continue to Progress Update
                 </Button>
               </div>
             </div>

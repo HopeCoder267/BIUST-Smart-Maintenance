@@ -8,18 +8,36 @@
  */
 
 import { useState, useEffect, useMemo } from 'react';
+import { useForm } from 'react-hook-form';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Badge } from '../../components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../../components/ui/dialog';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '../../components/ui/form';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { Package, Search, AlertTriangle, Plus, TrendingDown, CheckCircle2 } from 'lucide-react';
 import { useDataStore } from '../../store/dataStore';
 
 export default function InventoryPage() {
-  const { inventory, fetchInventory } = useDataStore();
+  const { inventory, fetchInventory, addInventory } = useDataStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  
+  const form = useForm({
+    defaultValues: {
+      itemName: '',
+      category: 'electrical',
+      quantity: 0,
+      minThreshold: 5,
+      unitPrice: 0,
+      unit: 'pieces',
+      supplier: '',
+      location: ''
+    }
+  });
 
   useEffect(() => { fetchInventory(); }, [fetchInventory]);
   
@@ -40,6 +58,56 @@ export default function InventoryPage() {
     out_of_stock: 'bg-rose-100 text-rose-800'
   };
   
+  const categories = [
+    { value: 'electrical', label: 'Electrical' },
+    { value: 'plumbing', label: 'Plumbing' },
+    { value: 'hvac', label: 'HVAC' },
+    { value: 'carpentry', label: 'Carpentry' },
+    { value: 'painting', label: 'Painting' },
+    { value: 'cleaning', label: 'Cleaning' },
+    { value: 'safety', label: 'Safety' },
+    { value: 'tools', label: 'Tools' },
+    { value: 'other', label: 'Other' }
+  ];
+  
+  const units = [
+    { value: 'pieces', label: 'Pieces' },
+    { value: 'boxes', label: 'Boxes' },
+    { value: 'liters', label: 'Liters' },
+    { value: 'kg', label: 'Kilograms' },
+    { value: 'meters', label: 'Meters' },
+    { value: 'sets', label: 'Sets' }
+  ];
+  
+  const onSubmit = async (data: any) => {
+    setIsLoading(true);
+    try {
+      const inventoryData = {
+        name: data.itemName,
+        category: data.category,
+        quantity: Number(data.quantity),
+        minThreshold: Number(data.minThreshold),
+        unitPrice: Number(data.unitPrice),
+        totalValue: Number(data.quantity) * Number(data.unitPrice),
+        unit: data.unit,
+        supplier: data.supplier || 'N/A',
+        location: data.location || 'Main Store',
+        status: Number(data.quantity) > Number(data.minThreshold) ? 'in_stock' : 
+                Number(data.quantity) === 0 ? 'out_of_stock' : 'low_stock'
+      };
+      
+      const success = await addInventory(inventoryData);
+      if (success) {
+        setIsAddDialogOpen(false);
+        form.reset();
+      }
+    } catch (error) {
+      console.error('Error adding inventory item:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -48,10 +116,205 @@ export default function InventoryPage() {
           <h1 className="text-3xl font-bold text-foreground mb-2">Inventory Management</h1>
           <p className="text-muted-foreground">Track and manage maintenance supplies</p>
         </div>
-        <Button className="gap-2 bg-primary text-white hover:bg-primary/90">
-          <Plus className="w-4 h-4" />
-          Add Item
-        </Button>
+        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+          <DialogTrigger asChild>
+            <Button className="gap-2 bg-primary text-white hover:bg-primary/90">
+              <Plus className="w-4 h-4" />
+              Add Item
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle>Add New Inventory Item</DialogTitle>
+            </DialogHeader>
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="itemName"
+                    rules={{ required: 'Item name is required' }}
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Item Name</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Enter item name" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="category"
+                    rules={{ required: 'Category is required' }}
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Category</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select category" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {categories.map((category) => (
+                              <SelectItem key={category.value} value={category.value}>
+                                {category.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                
+                <div className="grid grid-cols-3 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="quantity"
+                    rules={{ 
+                      required: 'Quantity is required',
+                      min: { value: 0, message: 'Quantity must be positive' }
+                    }}
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Quantity</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="number" 
+                            placeholder="0" 
+                            {...field} 
+                            onChange={(e) => field.onChange(Number(e.target.value))}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="minThreshold"
+                    rules={{ 
+                      required: 'Min threshold is required',
+                      min: { value: 1, message: 'Minimum threshold must be at least 1' }
+                    }}
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Min Threshold</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="number" 
+                            placeholder="5" 
+                            {...field} 
+                            onChange={(e) => field.onChange(Number(e.target.value))}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="unit"
+                    rules={{ required: 'Unit is required' }}
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Unit</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select unit" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {units.map((unit) => (
+                              <SelectItem key={unit.value} value={unit.value}>
+                                {unit.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="unitPrice"
+                    rules={{ 
+                      required: 'Unit price is required',
+                      min: { value: 0, message: 'Price must be positive' }
+                    }}
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Unit Price (P)</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="number" 
+                            step="0.01"
+                            placeholder="0.00" 
+                            {...field} 
+                            onChange={(e) => field.onChange(Number(e.target.value))}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="supplier"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Supplier (Optional)</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Supplier name" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                
+                <FormField
+                  control={form.control}
+                  name="location"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Storage Location</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Main Store" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <div className="flex justify-end gap-2 pt-4">
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={() => {
+                      setIsAddDialogOpen(false);
+                      form.reset();
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={isLoading}>
+                    {isLoading ? 'Adding...' : 'Add Item'}
+                  </Button>
+                </div>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
       </div>
       
       {/* Stats Cards */}

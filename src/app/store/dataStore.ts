@@ -112,6 +112,7 @@ interface DataState {
   addInventory: (inventoryData: any) => Promise<boolean>;
   updateInventory: (inventoryId: string, updates: any) => Promise<boolean>;
   deleteInventory: (inventoryId: string) => Promise<boolean>;
+  consumeInventory: (inventoryId: string, quantityUsed: number) => Promise<boolean>;
 
   // Attachment operations
   uploadAttachment: (file: File, ticketId?: string) => Promise<string>;
@@ -952,6 +953,44 @@ export const useDataStore = create<DataState>()(
         } catch (error: any) {
           set({ error: error.message, isLoading: false });
           toast.error(error.message || 'Failed to delete inventory item');
+          return false;
+        }
+      },
+
+      consumeInventory: async (inventoryId: string, quantityUsed: number) => {
+        set({ isLoading: true, error: null });
+        try {
+          const inventoryRef = doc(db, 'inventory', inventoryId);
+          const inventoryDoc = await getDoc(inventoryRef);
+          
+          if (!inventoryDoc.exists()) {
+            throw new Error('Inventory item not found');
+          }
+          
+          const currentData = inventoryDoc.data();
+          const currentQuantity = currentData.quantity || 0;
+          
+          if (currentQuantity < quantityUsed) {
+            throw new Error(`Insufficient stock. Available: ${currentQuantity}, Requested: ${quantityUsed}`);
+          }
+          
+          const newQuantity = currentQuantity - quantityUsed;
+          const newTotalValue = newQuantity * (currentData.unitPrice || 0);
+          const newStatus = newQuantity > currentData.minThreshold ? 'in_stock' : 
+                           newQuantity === 0 ? 'out_of_stock' : 'low_stock';
+          
+          await updateDoc(inventoryRef, {
+            quantity: newQuantity,
+            totalValue: newTotalValue,
+            status: newStatus,
+            updatedAt: serverTimestamp()
+          });
+          
+          toast.success(`Used ${quantityUsed} ${currentData.unit} of ${currentData.name}`);
+          return true;
+        } catch (error: any) {
+          set({ error: error.message, isLoading: false });
+          toast.error(error.message || 'Failed to consume inventory');
           return false;
         }
       },
