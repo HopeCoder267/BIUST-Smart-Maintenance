@@ -148,44 +148,44 @@ export default function TechnicianDashboard() {
       </div>
       
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <Card className="bg-white border-border">
-          <CardContent className="p-6">
+          <CardContent className="p-4 sm:p-6">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground mb-1">Active Jobs</p>
-                <p className="text-3xl font-bold text-foreground">{activeTickets.length}</p>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm text-muted-foreground mb-1 truncate">Active Jobs</p>
+                <p className="text-2xl sm:text-3xl font-bold text-foreground">{activeTickets.length}</p>
               </div>
-              <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
-                <Wrench className="w-6 h-6 text-primary" />
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0 ml-2">
+                <Wrench className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
               </div>
             </div>
           </CardContent>
         </Card>
         
         <Card className="bg-white border-border">
-          <CardContent className="p-6">
+          <CardContent className="p-4 sm:p-6">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground mb-1">Total Assigned</p>
-                <p className="text-3xl font-bold text-foreground">{assigned.length}</p>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm text-muted-foreground mb-1 truncate">Total Assigned</p>
+                <p className="text-2xl sm:text-3xl font-bold text-foreground">{assigned.length}</p>
               </div>
-              <div className="w-12 h-12 bg-purple-500/10 rounded-lg flex items-center justify-center">
-                <Calendar className="w-6 h-6 text-purple-500" />
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-purple-500/10 rounded-lg flex items-center justify-center flex-shrink-0 ml-2">
+                <Calendar className="w-5 h-5 sm:w-6 sm:h-6 text-purple-500" />
               </div>
             </div>
           </CardContent>
         </Card>
         
         <Card className="bg-white border-border">
-          <CardContent className="p-6">
+          <CardContent className="p-4 sm:p-6">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground mb-1">Completed</p>
-                <p className="text-3xl font-bold text-foreground">{historyTickets.length}</p>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm text-muted-foreground mb-1 truncate">Completed</p>
+                <p className="text-2xl sm:text-3xl font-bold text-foreground">{historyTickets.length}</p>
               </div>
-              <div className="w-12 h-12 bg-green-500/10 rounded-lg flex items-center justify-center">
-                <CheckCircle2 className="w-6 h-6 text-green-500" />
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-green-500/10 rounded-lg flex items-center justify-center flex-shrink-0 ml-2">
+                <CheckCircle2 className="w-5 h-5 sm:w-6 sm:h-6 text-green-500" />
               </div>
             </div>
           </CardContent>
@@ -218,28 +218,28 @@ export default function TechnicianDashboard() {
               {activeTickets.map((ticket) => (
                 <Card key={ticket.id} className="bg-white border-border hover:bg-muted/30 transition-colors">
                   <CardContent className="p-4">
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
+                    <div className="flex flex-col lg:flex-row lg:items-start gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
                           <h3 className="font-semibold text-foreground">{ticket.title}</h3>
                           {ticket.priority && (
-                            <Badge className={getPriorityBadge(ticket.priority)}>
+                            <Badge className={`${getPriorityBadge(ticket.priority)} text-white border-none self-start sm:self-auto`}>
                               {ticket.priority}
                             </Badge>
                           )}
                         </div>
                         <p className="text-sm text-muted-foreground mb-3">{ticket.description}</p>
-                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 text-sm text-muted-foreground mb-3">
                           <div className="flex items-center gap-2">
-                            <MapPin className="w-4 h-4 text-primary" />
+                            <MapPin className="w-4 h-4 text-primary flex-shrink-0" />
                             {ticket.block} • Room {ticket.room}
                           </div>
                           <div className="flex items-center gap-2">
-                            <Calendar className="w-4 h-4 text-primary" />
+                            <Calendar className="w-4 h-4 text-primary flex-shrink-0" />
                             {safeFormatDate(ticket.createdAt, 'MMM d, yyyy')}
                           </div>
                           <div className="flex items-center gap-2">
-                            <Clock className="w-4 h-4 text-primary" />
+                            <Clock className="w-4 h-4 text-primary flex-shrink-0" />
                             Stage: {ticket.currentStage.replace(/_/g, ' ')}
                           </div>
                         </div>
@@ -247,7 +247,7 @@ export default function TechnicianDashboard() {
                         {/* Resident Availability - Added for technician efficiency */}
                         <div className="mt-3 p-2.5 bg-primary/5 rounded-lg border border-primary/10">
                           <div className="flex items-center gap-2 mb-1">
-                            <UserIcon className="w-4 h-4 text-primary" />
+                            <UserIcon className="w-4 h-4 text-primary flex-shrink-0" />
                             <span className="text-sm font-semibold text-primary">Resident Availability:</span>
                           </div>
                           <p className="text-sm text-foreground font-medium pl-6">
@@ -255,41 +255,44 @@ export default function TechnicianDashboard() {
                           </p>
                         </div>
                       </div>
-                      <div className="flex flex-col gap-2">
+                      <div className="flex flex-row lg:flex-col gap-2 lg:min-w-0">
                         <Button 
                           size="sm" 
                           variant="outline"
-                          className="gap-2 border-border text-foreground hover:bg-muted"
+                          className="gap-2 border-border text-foreground hover:bg-muted flex-1"
                           onClick={() => {
                             setSelectedTicket(ticket);
                             setIsUpdateDialogOpen(true);
                           }}
                         >
                           <FileText className="w-4 h-4" />
-                          Update Progress
+                          <span className="hidden sm:inline">Update Progress</span>
+                          <span className="sm:hidden">Update</span>
                         </Button>
                         <Button 
                           size="sm" 
                           variant="outline"
-                          className="gap-2 border-border text-foreground hover:bg-muted"
+                          className="gap-2 border-border text-foreground hover:bg-muted flex-1"
                           onClick={() => {
                             setSelectedTicket(ticket);
                             setIsInventoryDialogOpen(true);
                           }}
                         >
                           <Package className="w-4 h-4" />
-                          Use Inventory
+                          <span className="hidden sm:inline">Use Inventory</span>
+                          <span className="sm:hidden">Inventory</span>
                         </Button>
                         <Button 
                           size="sm" 
-                          className="gap-2 bg-green-600 text-white hover:bg-green-700"
+                          className="gap-2 bg-green-600 text-white hover:bg-green-700 flex-1"
                           onClick={() => {
                             setSelectedTicket(ticket);
                             setIsCompleteDialogOpen(true);
                           }}
                         >
                           <CheckCircle2 className="w-4 h-4" />
-                          Complete Job
+                          <span className="hidden sm:inline">Complete Job</span>
+                          <span className="sm:hidden">Complete</span>
                         </Button>
                       </div>
                     </div>
@@ -315,10 +318,10 @@ export default function TechnicianDashboard() {
       
       {/* Update Progress Dialog */}
       <Dialog open={isUpdateDialogOpen} onOpenChange={setIsUpdateDialogOpen}>
-        <DialogContent className="bg-white border-border text-foreground max-w-2xl">
+        <DialogContent className="bg-white border-border text-foreground max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Update Job Progress</DialogTitle>
-            <DialogDescription className="text-muted-foreground">
+            <DialogTitle className="text-lg sm:text-xl">Update Job Progress</DialogTitle>
+            <DialogDescription className="text-muted-foreground text-sm">
               Update the progress stage and add notes about the work performed
             </DialogDescription>
           </DialogHeader>
@@ -399,10 +402,10 @@ export default function TechnicianDashboard() {
       
       {/* Complete Job Dialog */}
       <Dialog open={isCompleteDialogOpen} onOpenChange={setIsCompleteDialogOpen}>
-        <DialogContent className="bg-white border-border text-foreground">
+        <DialogContent className="bg-white border-border text-foreground mx-4 max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Complete Job</DialogTitle>
-            <DialogDescription className="text-muted-foreground">
+            <DialogTitle className="text-lg sm:text-xl">Complete Job</DialogTitle>
+            <DialogDescription className="text-muted-foreground text-sm">
               Mark this job as complete and add final notes
             </DialogDescription>
           </DialogHeader>
@@ -460,14 +463,14 @@ export default function TechnicianDashboard() {
       
       {/* Inventory Usage Dialog */}
       <Dialog open={isInventoryDialogOpen} onOpenChange={setIsInventoryDialogOpen}>
-        <DialogContent className="bg-white border-border text-foreground max-w-4xl max-h-[85vh]">
+        <DialogContent className="bg-white border-border text-foreground mx-4 max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader className="pb-4">
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
               <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
                 <Package className="w-5 h-5 text-primary" />
               </div>
               <div>
-                <DialogTitle className="text-xl font-semibold">Use Inventory Items</DialogTitle>
+                <DialogTitle className="text-lg sm:text-xl font-semibold">Use Inventory Items</DialogTitle>
                 <DialogDescription className="text-muted-foreground text-sm">
                   Select materials and quantities needed for this job
                 </DialogDescription>
@@ -511,7 +514,7 @@ export default function TechnicianDashboard() {
                   </div>
                 </div>
                 
-                <ScrollArea className="h-[450px] border border-border/50 rounded-xl bg-gray-50/50">
+                <ScrollArea className="h-[350px] sm:h-[450px] border border-border/50 rounded-xl bg-gray-50/50">
                   <div className="p-4 space-y-3">
                     {Array.isArray(inventory) && inventory.length > 0 ? (
                       inventory.map((item) => {
@@ -528,16 +531,16 @@ export default function TechnicianDashboard() {
                               <div className="flex items-start justify-between gap-4">
                                 {/* Item Details */}
                                 <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-2 mb-3">
+                                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-3">
                                     <h4 className="font-semibold text-foreground truncate">{item.name}</h4>
-                                    <Badge variant="outline" className="text-xs border-border/50 bg-gray-50">
+                                    <Badge variant="outline" className="text-xs border-border/50 bg-gray-50 self-start sm:self-auto">
                                       {item.category.replace('_', ' ')}
                                     </Badge>
                                   </div>
                                   
-                                  <div className="grid grid-cols-2 gap-3 mb-3">
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
                                     <div className="flex items-center gap-2">
-                                      <div className={`w-2 h-2 rounded-full ${
+                                      <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
                                         item.status === 'in_stock' ? 'bg-green-500' :
                                         item.status === 'low_stock' ? 'bg-amber-500' :
                                         'bg-red-500'
@@ -552,7 +555,7 @@ export default function TechnicianDashboard() {
                                     </div>
                                   </div>
                                   
-                                  <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                                  <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-xs text-muted-foreground">
                                     <span className="flex items-center gap-1">
                                       <span className="font-medium">P{item.unitPrice || 0}</span>
                                       per {item.unit}
@@ -571,13 +574,13 @@ export default function TechnicianDashboard() {
                                 </div>
                                 
                                 {/* Usage Controls */}
-                                <div className="flex flex-col items-end gap-3 min-w-0">
-                                  <div className="flex items-center gap-2">
-                                    <div className="flex flex-col items-end">
+                                <div className="flex flex-col items-end gap-3 min-w-0 mt-3 sm:mt-0">
+                                  <div className="flex items-center gap-2 w-full sm:w-auto">
+                                    <div className="flex flex-col items-end w-full sm:w-auto">
                                       <Label htmlFor={`quantity-${item.id}`} className="text-xs text-muted-foreground mb-1">
                                         Quantity to Use
                                       </Label>
-                                      <div className="flex items-center gap-1">
+                                      <div className="flex items-center gap-1 w-full sm:w-auto">
                                         <Input
                                           id={`quantity-${item.id}`}
                                           type="number"
@@ -585,11 +588,11 @@ export default function TechnicianDashboard() {
                                           max={item.quantity}
                                           value={currentUsage || ''}
                                           onChange={(e) => handleUpdateInventoryQuantity(item.id, parseInt(e.target.value) || 0)}
-                                          className="w-20 h-9 text-sm text-center border-border/50"
+                                          className="w-20 h-9 text-sm text-center border-border/50 flex-1 sm:flex-none"
                                           placeholder="0"
                                           disabled={isOutOfStock}
                                         />
-                                        <span className="text-xs text-muted-foreground font-medium">
+                                        <span className="text-xs text-muted-foreground font-medium whitespace-nowrap">
                                           {item.unit}
                                         </span>
                                       </div>
@@ -606,7 +609,7 @@ export default function TechnicianDashboard() {
                                     onClick={() => handleUseInventoryItem(item.id)}
                                     disabled={!currentUsage || currentUsage <= 0 || currentUsage > item.quantity || isOutOfStock}
                                     className={`
-                                      h-9 px-4 text-xs font-medium transition-all
+                                      h-9 px-4 text-xs font-medium transition-all w-full sm:w-auto
                                       ${isOutOfStock 
                                         ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
                                         : 'bg-primary text-white hover:bg-primary/90 active:scale-95'

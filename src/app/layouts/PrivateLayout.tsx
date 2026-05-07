@@ -13,15 +13,16 @@ import { Button } from '../components/ui/button';
 import {
   Search, Bell, Settings, LogOut, User, ClipboardList, Package,
   FolderKanban, Box, Users, BarChart3, DollarSign, Building2,
-  FileText, AlertCircle,
+  FileText, AlertCircle, Menu, X,
 } from 'lucide-react';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { cn } from '../components/ui/utils';
 
 export default function PrivateLayout() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const { user, isAuthenticated, logout } = usePrivateAuthStore();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
   /**
    * Security gate: Redirect unauthorized access to login.
@@ -88,7 +89,7 @@ export default function PrivateLayout() {
           <span className="font-bold text-sm tracking-tight">SMART MAINTENANCE</span>
         </div>
         
-        <div className="flex-1 max-w-md relative hidden md:block">
+        <div className="flex-1 max-w-md relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input
             placeholder="Search tickets or resources..."
@@ -104,7 +105,7 @@ export default function PrivateLayout() {
             <div className="w-7 h-7 bg-primary/20 rounded-full flex items-center justify-center">
               <User className="w-4 h-4 text-primary" />
             </div>
-            <div className="hidden sm:block text-left">
+            <div className="text-left">
               <p className="text-xs font-bold leading-tight">{user.name}</p>
               <p className="text-[10px] text-muted-foreground uppercase font-medium">{user.role.replace('_', ' ')}</p>
             </div>
@@ -115,13 +116,40 @@ export default function PrivateLayout() {
       </header>
       
       <div className="flex-1 flex overflow-hidden">
+        {/* Mobile Menu Button */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="lg:hidden fixed bottom-4 right-4 z-50 w-14 h-14 bg-primary text-white rounded-full shadow-lg"
+          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+        >
+          {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+        </Button>
+        
         {/* Main Navigation Sidebar */}
-        <aside className="w-64 bg-white border-r flex flex-col hidden lg:flex">
+        <aside className={cn(
+          "fixed lg:relative inset-y-0 left-0 z-40 w-64 bg-white border-r flex flex-col transform transition-transform duration-300 ease-in-out",
+          "lg:flex lg:static lg:transform-none",
+          isMobileMenuOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+        )}>
+          {/* Mobile Header */}
+          <div className="lg:hidden flex items-center justify-between p-4 border-b">
+            <span className="font-bold text-sm tracking-tight">Navigation</span>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              <X className="w-5 h-5" />
+            </Button>
+          </div>
+          
           <nav className="flex-1 py-6 px-3 space-y-1 overflow-y-auto">
             {navItems.map((item) => (
               <Link
                 key={item.path}
                 to={item.path}
+                onClick={() => setIsMobileMenuOpen(false)}
                 className={cn(
                   'flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all group',
                   pathname === item.path ? 'bg-primary text-primary-foreground shadow-md' : 'text-muted-foreground hover:bg-muted hover:text-foreground'
@@ -140,6 +168,14 @@ export default function PrivateLayout() {
             </div>
           </div>
         </aside>
+        
+        {/* Mobile Menu Overlay */}
+        {isMobileMenuOpen && (
+          <div 
+            className="lg:hidden fixed inset-0 bg-black/50 z-30"
+            onClick={() => setIsMobileMenuOpen(false)}
+          />
+        )}
         
         {/* Core Content View */}
         <main className="flex-1 overflow-auto bg-slate-50/50 p-4 md:p-8">

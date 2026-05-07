@@ -41,7 +41,7 @@ export default function PublicLayout() {
               <Home className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="font-bold text-slate-900 tracking-tight leading-none">SMART MAINTAINENCE</h1>
+              <h1 className="font-bold text-slate-900 tracking-tight leading-none">SMART MAINTENANCE</h1>
               <p className="text-[11px] text-slate-500 font-medium uppercase mt-1">
                 {user.block || 'Main Campus'} • Room {user.room || 'N/A'}
               </p>
