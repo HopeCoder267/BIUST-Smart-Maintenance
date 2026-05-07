@@ -26,6 +26,19 @@ export default function TechnicianDashboard() {
   const { user } = usePrivateAuthStore();
   const { tickets, fetchTickets, updateProgress, updateStatus } = useDataStore();
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
+  
+  // Safe date formatting function
+  const safeFormatDate = (timestamp: any, formatString: string) => {
+    if (!timestamp) return 'No date';
+    try {
+      const date = timestamp instanceof Date ? timestamp : new Date(timestamp);
+      if (isNaN(date.getTime())) return 'No date';
+      return format(date, formatString);
+    } catch (error) {
+      console.warn('Invalid date format:', timestamp);
+      return 'No date';
+    }
+  };
   const [isUpdateDialogOpen, setIsUpdateDialogOpen] = useState(false);
   const [isCompleteDialogOpen, setIsCompleteDialogOpen] = useState(false);
   const [selectedStage, setSelectedStage] = useState<ProgressStage>('workInProgress');
@@ -197,7 +210,7 @@ export default function TechnicianDashboard() {
                           </div>
                           <div className="flex items-center gap-2">
                             <Calendar className="w-4 h-4 text-primary" />
-                            {ticket.createdAt ? format(new Date(ticket.createdAt), 'MMM d, yyyy') : 'No date available'}
+                            {safeFormatDate(ticket.createdAt, 'MMM d, yyyy')}
                           </div>
                           <div className="flex items-center gap-2">
                             <Clock className="w-4 h-4 text-primary" />

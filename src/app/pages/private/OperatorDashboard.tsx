@@ -22,9 +22,10 @@ import { Search, UserPlus, AlertTriangle, TrendingUp, Clock, CheckCircle2, Setti
 import { TicketPriority } from '../../types';
 import ProgressTimeline from '../../components/ProgressTimeline';
 import { format } from 'date-fns';
+import { Ticket, ProgressStage } from '../../types';
 
 export default function OperatorDashboard() {
-  const { tickets, users, fetchTickets, fetchUsers, assignTechnician, updatePriority, dashboardAnalytics: stats, fetchAnalytics } = useDataStore();
+  const { tickets, users, fetchTickets, fetchUsers, assignTechnician, updatePriority, dashboardAnalytics: stats, fetchAnalytics, updateTicket } = useDataStore();
   const [query, setQuery] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState({ priority: 'all', status: 'all' });
@@ -55,6 +56,8 @@ export default function OperatorDashboard() {
   // Filter technicians from users data with defensive programming
   useEffect(() => {
     const technicianUsers = users.filter(user => user && user.role === 'technician');
+    console.log('Available users:', users);
+    console.log('Filtered technicians:', technicianUsers);
     setTechnicians(technicianUsers);
   }, [users]);
 
@@ -98,10 +101,18 @@ export default function OperatorDashboard() {
   const handleAssignTechnician = async (technicianId: string) => {
     if (!selectedTicket) return;
     
-    const technician = technicians.find(t => t.id === technicianId);
-    if (!technician) return;
+    console.log('Assigning technician ID:', technicianId);
+    console.log('Available technicians:', technicians);
     
-    const success = await assignTechnician(selectedTicket.id, technician);
+    const technician = technicians.find(t => t.id === technicianId);
+    if (!technician) {
+      console.error('Technician not found with ID:', technicianId);
+      return;
+    }
+    
+    console.log('Found technician:', technician);
+    
+    const success = await assignTechnician(selectedTicket.id, technicianId);
     
     if (success) {
       // Refresh data to ensure consistency
@@ -129,6 +140,30 @@ export default function OperatorDashboard() {
     
     setIsPriorityDialogOpen(false);
     setSelectedTicket(null);
+  };
+
+  /**
+   * Handle ticket stage update
+   */
+  const handleUpdateStage = async (ticketId: string, newStage: ProgressStage, notes?: string) => {
+    try {
+      const success = await updateTicket(ticketId, {
+        currentStage: newStage,
+        progressHistory: [{
+          stage: newStage,
+          timestamp: new Date(),
+          updatedBy: { id: 'operator', name: 'Operator', role: 'operator' },
+          notes: notes || `Stage updated to ${newStage} by operator`
+        }]
+      });
+      
+      if (success) {
+        await fetchTickets();
+        await fetchAnalytics();
+      }
+    } catch (error) {
+      console.error('Failed to update stage:', error);
+    }
   };
   
     
@@ -339,6 +374,21 @@ export default function OperatorDashboard() {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
+                          {/* Mark as Reviewed button for reportSubmitted tickets */}
+                          {ticket.currentStage === 'reportSubmitted' && (
+                            <Button
+                              size="sm"
+                              className="gap-2 bg-green-600 hover:bg-green-700 text-white"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleUpdateStage(ticket.id, 'operatorReview', 'Ticket marked as reviewed by operator');
+                              }}
+                            >
+                              <CheckCircle2 className="w-4 h-4" />
+                              Mark Reviewed
+                            </Button>
+                          )}
+                          
                           <Button
                             size="sm"
                             variant="outline"
@@ -350,6 +400,7 @@ export default function OperatorDashboard() {
                             }}
                           >
                             <UserPlus className="w-4 h-4" />
+                            Assign
                           </Button>
                           <Button
                             size="sm"

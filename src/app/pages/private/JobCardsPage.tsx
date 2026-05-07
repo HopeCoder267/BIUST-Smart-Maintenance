@@ -29,7 +29,7 @@ import { format } from 'date-fns';
 import { Ticket, User as UserType } from '../../types';
 
 export default function JobCardsPage() {
-  const { user } = usePrivateAuthStore();
+  const { user, hasAnyRole } = usePrivateAuthStore();
   const { tickets, users, fetchTickets, fetchUsers, updateTicket, addTicket } = useDataStore();
   
   const [searchQuery, setSearchQuery] = useState('');
@@ -65,8 +65,8 @@ export default function JobCardsPage() {
   // Convert tickets to job cards
   const jobCards = useMemo(() => {
     let filtered = tickets.filter(ticket => 
-      (user?.role === 'technician' && ticket.assignedTo?.id === user.id) ||
-      (user?.role === 'coordinator')
+      (hasAnyRole(['technician']) && ticket.assignedTo?.id === user?.id) ||
+      (hasAnyRole(['coordinator']))
     );
 
     // Apply search filter
@@ -116,7 +116,7 @@ export default function JobCardsPage() {
   // Handle creating new job card
   const handleCreateJobCard = async (e: React.FormEvent) => {
     // Check if user is allowed to create tickets
-    if (user?.role === 'coordinator') {
+    if (hasAnyRole(['coordinator'])) {
       toast.error('Coordinators cannot create tickets. They can only view statistics and manage existing tickets.');
       return;
     }
@@ -201,7 +201,7 @@ export default function JobCardsPage() {
         </div>
         
         <div className="flex gap-3">
-          {user?.role !== 'coordinator' && (
+          {!hasAnyRole(['coordinator']) && (
             <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
               <DialogTrigger asChild>
                 <Button className="gap-2">
@@ -297,7 +297,7 @@ export default function JobCardsPage() {
                   </div>
                 </div>
                 
-                {user?.role === 'coordinator' && (
+                {hasAnyRole(['coordinator']) && (
                   <div className="space-y-2">
                     <Label htmlFor="assignedTo">Assign To</Label>
                     <Select value={formData.assignedTo} onValueChange={(value) => setFormData(prev => ({ ...prev, assignedTo: value }))}>
@@ -515,7 +515,7 @@ export default function JobCardsPage() {
                           <Eye className="w-4 h-4" />
                         </Button>
                         
-                        {user?.role === 'coordinator' && (
+                        {hasAnyRole(['coordinator']) && (
                           <>
                             <Button variant="ghost" size="sm">
                               <Edit className="w-4 h-4" />
@@ -526,7 +526,7 @@ export default function JobCardsPage() {
                           </>
                         )}
                         
-                        {user?.role === 'technician' && job.status === 'open' && (
+                        {hasAnyRole(['technician']) && job.status === 'open' && (
                           <Button 
                             variant="ghost" 
                             size="sm"
@@ -536,7 +536,7 @@ export default function JobCardsPage() {
                           </Button>
                         )}
                         
-                        {user?.role === 'technician' && job.status === 'inProgress' && (
+                        {hasAnyRole(['technician']) && job.status === 'inProgress' && (
                           <Button 
                             variant="ghost" 
                             size="sm"
@@ -618,7 +618,7 @@ export default function JobCardsPage() {
                 </div>
               </div>
               
-              {user?.role === 'coordinator' && (
+              {hasAnyRole(['coordinator']) && (
                 <div className="flex justify-end gap-3">
                   <Button variant="outline">
                     <Edit className="w-4 h-4 mr-2" />

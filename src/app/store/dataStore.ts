@@ -78,6 +78,7 @@ interface DataState {
   deleteResident: (residentId: string) => Promise<boolean>;
 
   // Ticket operations
+  //assign technician
   fetchTickets: () => Promise<void>;
   addTicket: (ticketData: Partial<Ticket>) => Promise<boolean>;
   updateTicket: (id: string, updates: Partial<Ticket>) => Promise<boolean>;
@@ -613,9 +614,14 @@ export const useDataStore = create<DataState>()(
       assignTechnician: async (ticketId: string, technicianId: string) => {
         set({ isLoading: true, error: null });
         try {
+          const technician = get().users.find(u => u.id === technicianId);
+          if (!technician) {
+            throw new Error('Technician not found');
+          }
+          
           const ticketRef = doc(db, 'tickets', ticketId);
           await updateDoc(ticketRef, {
-            assignedTo: technicianId,
+            assignedTo: technician,
             updatedAt: serverTimestamp()
           });
           toast.success('Technician assigned successfully');

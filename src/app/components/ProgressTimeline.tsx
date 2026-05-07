@@ -8,18 +8,18 @@
  */
 
 import { Check, Circle, Clock } from 'lucide-react';
-import { ProgressStage, ProgressHistoryEntry } from '../../types';
+import { ProgressStage, ProgressHistoryEntry } from '../types';
 import { format } from 'date-fns';
 import { cn } from './ui/utils';
 
 const STAGES: Array<{ stage: ProgressStage; label: string; desc: string }> = [
-  { stage: 'report_submitted', label: 'Submitted', desc: 'Initial report filed' },
-  { stage: 'operator_review', label: 'Review', desc: 'Under review by ops' },
-  { stage: 'sourcing_funds', label: 'Funding', desc: 'Budget allocation' },
-  { stage: 'sourcing_materials', label: 'Procurement', desc: 'Ordering materials' },
-  { stage: 'technician_assigned', label: 'Assigned', desc: 'Technician assigned' },
-  { stage: 'scheduled_visit', label: 'Scheduled', desc: 'Visit appointment set' },
-  { stage: 'work_in_progress', label: 'In Progress', desc: 'Repair work underway' },
+  { stage: 'reportSubmitted', label: 'Submitted', desc: 'Initial report filed' },
+  { stage: 'operatorReview', label: 'Review', desc: 'Under review by ops' },
+  { stage: 'sourcingFunds', label: 'Funding', desc: 'Budget allocation' },
+  { stage: 'sourcingMaterials', label: 'Procurement', desc: 'Ordering materials' },
+  { stage: 'technicianAssigned', label: 'Assigned', desc: 'Technician assigned' },
+  { stage: 'scheduledVisit', label: 'Scheduled', desc: 'Visit appointment set' },
+  { stage: 'workInProgress', label: 'In Progress', desc: 'Repair work underway' },
   { stage: 'completed', label: 'Completed', desc: 'Work finished' },
   { stage: 'closed', label: 'Closed', desc: 'Verified and closed' },
 ];
@@ -34,6 +34,20 @@ interface TimelineProps {
 export default function ProgressTimeline({ currentStage, progressHistory, variant = 'horizontal', showNotes = true }: TimelineProps) {
   const currentIndex = currentStage ? STAGES.findIndex(s => s.stage === currentStage) : -1;
   const getHistory = (stage: ProgressStage) => progressHistory?.find(h => h.stage === stage) || null;
+  
+  // Safe date formatting function
+  const safeFormatDate = (timestamp: any, formatString: string) => {
+    if (!timestamp) return '';
+    try {
+      const date = timestamp instanceof Date ? timestamp : new Date(timestamp);
+      // Check if date is valid
+      if (isNaN(date.getTime())) return '';
+      return format(date, formatString);
+    } catch (error) {
+      console.warn('Invalid date format:', timestamp);
+      return '';
+    }
+  };
   const getStatus = (idx: number) => {
     if (currentIndex === -1) return 'pending';
     return idx < currentIndex ? 'completed' : idx === currentIndex ? 'current' : 'pending';
@@ -65,7 +79,7 @@ export default function ProgressTimeline({ currentStage, progressHistory, varian
                 </div>
                 <div className="mt-3 text-center">
                   <p className={cn("text-[10px] font-bold uppercase tracking-tighter", status === 'pending' ? "text-slate-400" : "text-slate-900")}>{s.label}</p>
-                  {history?.timestamp && <p className="text-[9px] text-slate-500 font-medium">{format(new Date(history.timestamp), 'MMM d')}</p>}
+                  {history?.timestamp && <p className="text-[9px] text-slate-500 font-medium">{safeFormatDate(history.timestamp, 'MMM d')}</p>}
                 </div>
               </div>
             );
@@ -104,7 +118,7 @@ export default function ProgressTimeline({ currentStage, progressHistory, varian
             <div className={cn("p-4 rounded-xl border transition-all", status === 'current' ? "bg-white border-primary shadow-sm ring-1 ring-primary/5" : "bg-slate-50/50 border-slate-100")}>
               <p className={cn("text-sm font-bold", status === 'pending' ? "text-slate-400" : "text-slate-900")}>{s.label}</p>
               <p className="text-xs text-slate-500 mt-0.5">{s.desc}</p>
-              {history?.timestamp && <p className="text-[10px] font-bold text-slate-400 mt-2 uppercase tracking-wider">{format(new Date(history.timestamp), 'MMMM d, HH:mm')}</p>}
+              {history?.timestamp && <p className="text-[10px] font-bold text-slate-400 mt-2 uppercase tracking-wider">{safeFormatDate(history.timestamp, 'MMMM d, HH:mm')}</p>}
               {showNotes && history?.notes && <p className="text-xs text-slate-600 mt-2 p-2.5 bg-white rounded-lg border border-slate-100 italic">"{history.notes}"</p>}
             </div>
           </div>
