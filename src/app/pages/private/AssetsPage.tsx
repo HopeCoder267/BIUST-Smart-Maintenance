@@ -125,7 +125,9 @@ export default function AssetsPage() {
 
   // Calculate asset health score
   const getHealthScore = (asset: Asset) => {
-    const ageInYears = (new Date().getTime() - new Date(asset.purchaseDate || '').getTime()) / (1000 * 60 * 60 * 24 * 365);
+    if (!asset.purchaseDate) return 50; // Default score if no purchase date
+    
+    const ageInYears = (new Date().getTime() - new Date(asset.purchaseDate).getTime()) / (1000 * 60 * 60 * 24 * 365);
     const depreciationRate = 0.1; // 10% per year
     const expectedValue = (asset.purchaseCost || 0) * Math.exp(-depreciationRate * ageInYears);
     const valueRetention = (asset.currentValue || 0) / (asset.purchaseCost || 1);
@@ -545,9 +547,9 @@ export default function AssetsPage() {
                     </TableCell>
                     <TableCell>
                       <div>
-                        <p className="font-medium">${asset.currentValue.toLocaleString()}</p>
+                        <p className="font-medium">${asset.currentValue !== null ? asset.currentValue.toLocaleString() : '0'}</p>
                         <p className="text-xs text-muted-foreground">
-                          ${asset.purchaseCost.toLocaleString()} purchase
+                          ${asset.purchaseCost !== null ? asset.purchaseCost.toLocaleString() : '0'} purchase
                         </p>
                       </div>
                     </TableCell>
@@ -558,7 +560,7 @@ export default function AssetsPage() {
                     </TableCell>
                     <TableCell>
                       <div className="text-sm text-muted-foreground">
-                        {format(asset.nextMaintenanceDate, 'MMM d, yyyy')}
+                        {asset.nextMaintenanceDate ? format(asset.nextMaintenanceDate, 'MMM d, yyyy') : 'Not set'}
                       </div>
                     </TableCell>
                     <TableCell className="text-right">
@@ -640,9 +642,9 @@ export default function AssetsPage() {
                 <div>
                   <Label className="text-sm font-medium text-muted-foreground">Current Value</Label>
                   <div>
-                    <p className="font-medium">${selectedAsset.currentValue.toLocaleString()}</p>
+                    <p className="font-medium">${selectedAsset.currentValue ? selectedAsset.currentValue.toLocaleString() : '0'}</p>
                     <p className="text-xs text-muted-foreground">
-                      ${selectedAsset.purchaseCost.toLocaleString()} purchase
+                      ${selectedAsset.purchaseCost ? selectedAsset.purchaseCost.toLocaleString() : '0'} purchase
                     </p>
                   </div>
                 </div>
@@ -671,19 +673,19 @@ export default function AssetsPage() {
               <div className="grid grid-cols-3 gap-4">
                 <div>
                   <Label className="text-sm font-medium text-muted-foreground">Purchase Date</Label>
-                  <p className="text-sm">{format(selectedAsset.purchaseDate, 'PPP')}</p>
+                  <p className="text-sm">{selectedAsset.purchaseDate ? format(selectedAsset.purchaseDate, 'PPP') : 'Not set'}</p>
                 </div>
                 <div>
                   <Label className="text-sm font-medium text-muted-foreground">Warranty Expiry</Label>
-                  <p className="text-sm">{format(selectedAsset.warrantyExpiry, 'PPP')}</p>
+                  <p className="text-sm">{selectedAsset.warrantyExpiry ? format(selectedAsset.warrantyExpiry, 'PPP') : 'Not set'}</p>
                 </div>
                 <div>
                   <Label className="text-sm font-medium text-muted-foreground">Last Maintenance</Label>
-                  <p className="text-sm">{format(selectedAsset.lastMaintenanceDate, 'PPP')}</p>
+                  <p className="text-sm">{selectedAsset.lastMaintenanceDate ? format(selectedAsset.lastMaintenanceDate, 'PPP') : 'Not set'}</p>
                 </div>
               </div>
               
-              {selectedAsset.specifications && (
+              {selectedAsset.specifications && Object.keys(selectedAsset.specifications).length > 0 && (
                 <div>
                   <Label className="text-sm font-medium text-muted-foreground mb-3">Specifications</Label>
                   <div className="grid grid-cols-2 gap-4">
@@ -699,7 +701,7 @@ export default function AssetsPage() {
                 </div>
               )}
               
-              {selectedAsset.maintenanceHistory.length > 0 && (
+              {selectedAsset.maintenanceHistory && selectedAsset.maintenanceHistory.length > 0 && (
                 <div>
                   <Label className="text-sm font-medium text-muted-foreground mb-3">Maintenance History</Label>
                   <div className="space-y-2">
@@ -710,7 +712,7 @@ export default function AssetsPage() {
                           <div>
                             <p className="text-sm font-medium">{maintenance.description}</p>
                             <p className="text-xs text-muted-foreground">
-                              {format(maintenance.date, 'PPP')} by {maintenance.performedBy.name}
+                              {maintenance.date ? format(maintenance.date, 'PPP') : 'Unknown date'} by {maintenance.performedBy?.name || 'Unknown'}
                             </p>
                           </div>
                         </div>
