@@ -28,6 +28,8 @@ import {
 import { format } from 'date-fns';
 import { Ticket, User as UserType } from '../../types';
 
+const UNASSIGNED_TECHNICIAN = '__unassigned__';
+
 export default function JobCardsPage() {
   const { user, hasAnyRole } = usePrivateAuthStore();
   const { tickets, users, fetchTickets, fetchUsers, updateTicket, addTicket } = useDataStore();
@@ -113,11 +115,27 @@ export default function JobCardsPage() {
     return styles[priority || ''] || 'bg-gray-500 text-white';
   };
 
+  const formatDateSafe = (value?: string) => {
+    if (!value) return 'N/A';
+    const parsedDate = new Date(value);
+    if (Number.isNaN(parsedDate.getTime())) return 'N/A';
+    return format(parsedDate, 'MMM d, yyyy');
+  };
+
+  const formatDateSafeLong = (value?: string) => {
+    if (!value) return 'N/A';
+    const parsedDate = new Date(value);
+    if (Number.isNaN(parsedDate.getTime())) return 'N/A';
+    return format(parsedDate, 'PPP');
+  };
+
   // Handle creating new job card
   const handleCreateJobCard = async (e: React.FormEvent) => {
+    e.preventDefault();
+
     // Check if user is allowed to create tickets
-    if (hasAnyRole(['coordinator'])) {
-      toast.error('Coordinators cannot create tickets. They can only view statistics and manage existing tickets.');
+    if (!hasAnyRole(['coordinator'])) {
+      toast.error('Only coordinators can create job cards.');
       return;
     }
 
@@ -137,6 +155,7 @@ export default function JobCardsPage() {
         status: 'open',
         block: formData.block,
         room: formData.room,
+        assignedTo: assignedUser,
         submittedBy: user!,
         currentStage: 'reportSubmitted',
         progressHistory: []
@@ -150,7 +169,7 @@ export default function JobCardsPage() {
         priority: 'medium',
         block: '',
         room: '',
-        assignedTo: '',
+        assignedTo: UNASSIGNED_TECHNICIAN,
         estimatedHours: '',
         materials: '',
         notes: ''
@@ -201,7 +220,7 @@ export default function JobCardsPage() {
         </div>
         
         <div className="flex gap-3">
-          {!hasAnyRole(['coordinator']) && (
+          {hasAnyRole(['coordinator']) && (
             <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
               <DialogTrigger asChild>
                 <Button className="gap-2">
@@ -300,12 +319,18 @@ export default function JobCardsPage() {
                 {hasAnyRole(['coordinator']) && (
                   <div className="space-y-2">
                     <Label htmlFor="assignedTo">Assign To</Label>
-                    <Select value={formData.assignedTo} onValueChange={(value) => setFormData(prev => ({ ...prev, assignedTo: value }))}>
+                    <Select
+                      value={formData.assignedTo || UNASSIGNED_TECHNICIAN}
+                      onValueChange={(value) => setFormData(prev => ({
+                        ...prev,
+                        assignedTo: value === UNASSIGNED_TECHNICIAN ? '' : value
+                      }))}
+                    >
                       <SelectTrigger>
                         <SelectValue placeholder="Select technician" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">Unassigned</SelectItem>
+                        <SelectItem value={UNASSIGNED_TECHNICIAN}>Unassigned</SelectItem>
                         {users
                           .filter(u => u.role === 'technician')
                           .map(technician => (
@@ -506,7 +531,7 @@ export default function JobCardsPage() {
                     </TableCell>
                     <TableCell>
                       <div className="text-sm text-muted-foreground">
-                        {job.createdAt ? format(new Date(job.createdAt), 'MMM d, yyyy') : 'N/A'}
+                        {formatDateSafe(job.createdAt)}
                       </div>
                     </TableCell>
                     <TableCell className="text-right">
@@ -517,10 +542,10 @@ export default function JobCardsPage() {
                         
                         {hasAnyRole(['coordinator']) && (
                           <>
-                            <Button variant="ghost" size="sm">
+                            <Button variant="ghost" size="sm" disabled title="Edit job card is not available yet">
                               <Edit className="w-4 h-4" />
                             </Button>
-                            <Button variant="ghost" size="sm" className="text-red-500">
+                            <Button variant="ghost" size="sm" className="text-red-500" disabled title="Delete job card is not available yet">
                               <Trash2 className="w-4 h-4" />
                             </Button>
                           </>
@@ -607,13 +632,13 @@ export default function JobCardsPage() {
                 <div>
                   <Label className="text-sm font-medium text-muted-foreground">Created</Label>
                   <p className="text-sm">
-                    {selectedJob.createdAt ? format(new Date(selectedJob.createdAt), 'PPP') : 'N/A'}
+                    {formatDateSafeLong(selectedJob.createdAt)}
                   </p>
                 </div>
                 <div>
                   <Label className="text-sm font-medium text-muted-foreground">Last Updated</Label>
                   <p className="text-sm">
-                    {selectedJob.updatedAt ? format(new Date(selectedJob.updatedAt), 'PPP') : 'N/A'}
+                    {formatDateSafeLong(selectedJob.updatedAt)}
                   </p>
                 </div>
               </div>
