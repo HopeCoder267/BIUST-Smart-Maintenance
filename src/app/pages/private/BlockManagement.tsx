@@ -362,9 +362,9 @@ export default function BlockManagement() {
 
   // WORKING PATTERN: CSV import (same approach)
   const downloadTemplate = () => {
-    const csvContent = `name,student_id,omang,level,block,room,digitalKey
-Katlego Jonny,ST001,123456789,Year 2 Computer Science,Block A,101,kate101
-Bobby Deeman,bd002,987654321,Year 3 Engineering,Block A,102,BOB102`;
+    const csvContent = `name,studentId,block,room,digitalKey
+Katlego Jonny,ST001,Block A,1,kate123
+Bobby Deeman,BD12345,Block A,102,123456`;
 
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
