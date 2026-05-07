@@ -22,7 +22,7 @@ import { Search, UserPlus, AlertTriangle, TrendingUp, Clock, CheckCircle2, Setti
 import { TicketPriority } from '../../types';
 import ProgressTimeline from '../../components/ProgressTimeline';
 import { format } from 'date-fns';
-import { Ticket, ProgressStage } from '../../types';
+import { Ticket, ProgressStage, User as UserType } from '../../types';
 
 export default function OperatorDashboard() {
   const { tickets, users, fetchTickets, fetchUsers, assignTechnician, updatePriority, dashboardAnalytics: stats, fetchAnalytics, updateTicket } = useDataStore();
@@ -93,6 +93,24 @@ export default function OperatorDashboard() {
       closed: 'bg-slate-100 text-slate-700'
     };
     return styles[status] || 'bg-gray-100 text-gray-700';
+  };
+
+  const getTechnicianLabel = (technician?: Partial<UserType>) => {
+    const email = technician?.email?.trim();
+    if (email) return email;
+
+    const fullName = technician?.name?.trim();
+    if (fullName && fullName.toLowerCase() !== 'unknown technician') return fullName;
+
+    const displayName = technician?.displayName?.trim();
+    if (displayName && displayName.toLowerCase() !== 'unknown technician') return displayName;
+
+    return 'No Email';
+  };
+
+  const getTechnicianInitial = (technician?: Partial<UserType>) => {
+    const label = getTechnicianLabel(technician);
+    return label.charAt(0).toUpperCase() || '?';
   };
   
   /**
@@ -360,10 +378,10 @@ export default function OperatorDashboard() {
                           <div className="flex items-center gap-2">
                             <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center">
                               <span className="text-xs text-white">
-                                {ticket.assignedTo.name?.charAt(0) || ticket.assignedTo.displayName?.charAt(0) || '?'}
+                                {getTechnicianInitial(ticket.assignedTo)}
                               </span>
                             </div>
-                            <span className="text-sm">{ticket.assignedTo.name || ticket.assignedTo.displayName || 'Unknown'}</span>
+                            <span className="text-sm">{getTechnicianLabel(ticket.assignedTo)}</span>
                           </div>
                         ) : (
                           <span className="text-slate-500 text-sm">Unassigned</span>
@@ -503,10 +521,10 @@ export default function OperatorDashboard() {
                     onClick={() => handleAssignTechnician(tech.id)}
                   >
                     <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
-                      <span className="text-white font-semibold">{tech.name?.charAt(0) || tech.displayName?.charAt(0) || '?'}</span>
+                      <span className="text-white font-semibold">{getTechnicianInitial(tech)}</span>
                     </div>
                     <div className="text-left">
-                      <p className="font-medium">{tech.name || tech.displayName || 'Unknown Technician'}</p>
+                      <p className="font-medium">{getTechnicianLabel(tech)}</p>
                       <p className="text-sm text-slate-400">{tech.role || 'technician'}</p>
                     </div>
                   </Button>

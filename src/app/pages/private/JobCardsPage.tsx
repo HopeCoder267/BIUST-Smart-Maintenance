@@ -115,6 +115,19 @@ export default function JobCardsPage() {
     return styles[priority || ''] || 'bg-gray-500 text-white';
   };
 
+  const getTechnicianLabel = (technician?: Partial<UserType>) => {
+    const email = technician?.email?.trim();
+    if (email) return email;
+
+    const fullName = technician?.name?.trim();
+    if (fullName && fullName.toLowerCase() !== 'unknown technician') return fullName;
+
+    const displayName = technician?.displayName?.trim();
+    if (displayName && displayName.toLowerCase() !== 'unknown technician') return displayName;
+
+    return 'No Email';
+  };
+
   const formatDateSafe = (value?: string) => {
     if (!value) return 'N/A';
     const parsedDate = new Date(value);
@@ -335,7 +348,7 @@ export default function JobCardsPage() {
                           .filter(u => u.role === 'technician')
                           .map(technician => (
                             <SelectItem key={technician.id} value={technician.id}>
-                              {technician.name}
+                              {getTechnicianLabel(technician)}
                             </SelectItem>
                           ))}
                       </SelectContent>
@@ -517,7 +530,7 @@ export default function JobCardsPage() {
                           <div className="w-6 h-6 bg-primary/20 rounded-full flex items-center justify-center">
                             <User className="w-3 h-3 text-primary" />
                           </div>
-                          <span className="text-sm">{job.assignedTo.name}</span>
+                          <span className="text-sm">{getTechnicianLabel(job.assignedTo)}</span>
                         </div>
                       ) : (
                         <span className="text-muted-foreground text-sm">Unassigned</span>
